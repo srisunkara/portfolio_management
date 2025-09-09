@@ -1,0 +1,7 @@
+pydantic
+# requirements.txt
+fastapi
+uvicorn
+python-multipart
+httpx
+pytest
