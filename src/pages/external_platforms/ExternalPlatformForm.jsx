@@ -89,7 +89,7 @@ export default function TradingPlatformForm({ mode }) {
 function FieldInput({ field, value, onChange }) {
   const { name, type, required } = field;
   if (name === "platform_type") {
-    const options = ["Trading Platform", "Pricing Platform"];
+    const options = ["Trading Platform", "Pricing Platform", "Secondary Trading Platform"];
     return (
       <label style={{ display: "grid", gap: 6 }}>
         <span>Platform Type{required ? " *" : ""}</span>

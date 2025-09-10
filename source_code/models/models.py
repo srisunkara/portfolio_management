@@ -56,7 +56,7 @@ class PortfolioDtlInput(BaseModel):
     close_date: Optional[date] = None
 
 
-ALLOWED_PLATFORM_TYPES = ["Trading Platform", "Pricing Platform"]
+ALLOWED_PLATFORM_TYPES = ["Trading Platform", "Pricing Platform", "Secondary Trading Platform"]
 
 
 class ExternalPlatformDtl(BaseModel):
