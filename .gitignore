@@ -1,2 +1,20 @@
-**/__pycache__/**
+# Byte-compiled / optimized / DLL files
+__pycache__/
 *.pyc
+*.$pyc
+
+# Distribution / packaging
+.Python
+env/
+venv/
+dist/
+build/
+*.egg-info/
+
+# PyCharm-specific files
+.idea/
+.vscode/
+
+# Logs and databases
+*.log
+*.sqlite

@@ -124,6 +124,7 @@ class HoldingDtl(BaseModel):
     created_ts: datetime = datetime.now(timezone.utc)
     last_updated_ts: datetime = datetime.now(timezone.utc)
 
+
 # Add input model to mirror other modules
 class HoldingDtlInput(BaseModel):
     holding_dt: date = date.today()
@@ -132,6 +133,7 @@ class HoldingDtlInput(BaseModel):
     quantity: float
     price: float
     market_value: float
+
 
 class SecurityPriceDtl(BaseModel):
     security_price_id: int
@@ -184,3 +186,22 @@ class TransactionFullView(BaseModel):
     net_amount: Optional[float] = None
     created_ts: datetime
     last_updated_ts: datetime
+
+
+class TransactionByNameInput(BaseModel):
+    portfolio_name: str
+    security_ticker: str
+    external_platform_name: str
+    transaction_date: date = date.today()
+    transaction_type: str
+    transaction_qty: float
+    transaction_price: float
+    # Optional fees
+    transaction_fee: float = 0.0
+    transaction_fee_percent: float = 0.0
+    carry_fee: float = 0.0
+    carry_fee_percent: float = 0.0
+    management_fee: float = 0.0
+    management_fee_percent: float = 0.0
+    external_manager_fee: float = 0.0
+    external_manager_fee_percent: float = 0.0
