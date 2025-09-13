@@ -30,6 +30,44 @@ def list_transactions_full():
     return transaction_crud.list_full()
 
 
+@router.get("/form-data")
+def get_transaction_form_data() -> dict[str, Any]:
+    """
+    Consolidated, lightweight payload for Add/Edit Transaction form to reduce
+    number of client round-trips and payload size.
+    Returns slim lists for portfolios, securities, and external platforms.
+    If any underlying lookup fails (e.g., DB unavailable), return empty lists
+    so the UI can still render the form instead of failing hard.
+    """
+    try:
+        portfolios = [
+            {"portfolio_id": p.portfolio_id, "name": p.name}
+            for p in portfolio_crud.list_all()
+        ]
+    except Exception:
+        portfolios = []
+    try:
+        securities = [
+            {"security_id": s.security_id, "ticker": s.ticker, "name": s.name}
+            for s in security_crud.list_all()
+        ]
+    except Exception:
+        securities = []
+    try:
+        platforms = [
+            {"external_platform_id": e.external_platform_id, "name": e.name}
+            for e in external_platform_crud.list_all()
+        ]
+    except Exception:
+        platforms = []
+
+    return {
+        "portfolios": portfolios,
+        "securities": securities,
+        "external_platforms": platforms,
+    }
+
+
 # Bulk save JSON array
 @router.post("/bulk", response_model=list[TransactionDtl])
 def save_transactions_bulk(txns: list[TransactionDtlInput]):
@@ -40,7 +78,7 @@ def save_transactions_bulk(txns: list[TransactionDtlInput]):
 
 @router.get("/{transaction_id}", response_model=TransactionDtl)
 def get_transaction(transaction_id: int):
-    t = transaction_crud.get_security(transaction_id)
+    t = transaction_crud.get_transaction(transaction_id)
     if not t:
         raise HTTPException(status_code=404, detail="Transaction not found")
     return t
@@ -328,3 +366,6 @@ async def upload_transactions_by_name_csv(file: UploadFile = File(...)) -> dict[
         loaded.append(transaction_crud.save(tx_input))
 
     return {"loaded": loaded, "excluded": excluded}
+
+
+

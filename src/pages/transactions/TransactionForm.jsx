@@ -23,10 +23,8 @@ export default function TransactionForm({ mode }) {
       try {
         const f = formFieldsForAction("TransactionDtl", isEdit ? "edit" : "create");
         let initial = {};
-        const [pfRes, secRes, tpRes, data] = await Promise.all([
-          api.listPortfolios(),
-          api.listSecurities(),
-          api.listExternalPlatforms(),
+        const [formData, data] = await Promise.all([
+          api.getTransactionFormData(),
           isEdit ? api.getTransaction(id) : Promise.resolve(null),
         ]);
         if (isEdit && data) {
@@ -38,9 +36,9 @@ export default function TransactionForm({ mode }) {
         }
         if (alive) {
           setFields(f);
-          setPortfolios(pfRes || []);
-          setSecurities(secRes || []);
-          setPlatforms(tpRes || []);
+          setPortfolios(formData?.portfolios || []);
+          setSecurities(formData?.securities || []);
+          setPlatforms(formData?.external_platforms || []);
           setForm(initial);
         }
       } catch (e) {

@@ -111,6 +111,10 @@ class TransactionCRUD(BaseCRUD[TransactionDtl]):
             return None
         return TransactionDtl(**rows[0])
 
+    # Alias for clarity in routes
+    def get_transaction(self, pk: int) -> Optional[TransactionDtl]:
+        return self.get_security(pk)
+
     def update(self, pk: int, item: TransactionDtlInput) -> TransactionDtl:
         # Ensure exists
         existing = self.get_security(pk)

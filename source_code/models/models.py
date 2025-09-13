@@ -77,7 +77,7 @@ class TransactionDtl(BaseModel):
     portfolio_id: int
     security_id: int
     external_platform_id: int
-    transaction_date: date = date.today()
+    transaction_date: date = Field(default_factory=date.today)
     transaction_type: str
     transaction_qty: float
     transaction_price: float
@@ -98,7 +98,7 @@ class TransactionDtlInput(BaseModel):
     portfolio_id: int
     security_id: int
     external_platform_id: int
-    transaction_date: date = date.today()
+    transaction_date: date = Field(default_factory=date.today)
     transaction_type: str
     transaction_qty: float
     transaction_price: float

@@ -76,6 +76,7 @@ export const api = {
   listTransactions: () => request("/transactions", { method: "GET" }),
   listTransactionsFull: () => request("/transactions", { method: "GET" }),
   getTransaction: (id) => request(`/transactions/${id}`, { method: "GET" }),
+  getTransactionFormData: () => request("/transactions/form-data", { method: "GET" }),
   createTransaction: (payload) => request("/transactions/", { method: "POST", body: JSON.stringify(payload) }),
   updateTransaction: (id, payload) => request(`/transactions/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteTransaction: (id) => request(`/transactions/${id}`, { method: "DELETE" }),
