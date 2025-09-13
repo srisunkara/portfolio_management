@@ -1,36 +1,50 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api/client.js";
 
-export default function SecurityPriceForm() {
+export default function SecurityPriceEdit() {
   const navigate = useNavigate();
+  const { id } = useParams();
+
   const [securities, setSecurities] = React.useState([]);
   const [form, setForm] = React.useState({
     security_id: "",
-    price_source: "MANUAL",
+    price_source: "",
     price_date: "",
     price: "",
     market_cap: "",
-    price_currency: "USD",
+    price_currency: "",
   });
-  const [saving, setSaving] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
+  const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState("");
 
   React.useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const secs = await api.listSecurities();
-        if (alive) setSecurities(secs || []);
+        const [price, secs] = await Promise.all([
+          api.getSecurityPrice(id),
+          api.listSecurities(),
+        ]);
+        if (!alive) return;
+        setSecurities(secs || []);
+        setForm({
+          security_id: price.security_id ?? "",
+          price_source: price.price_source ?? "",
+          price_date: typeof price.price_date === "string" ? price.price_date : new Date(price.price_date).toISOString().slice(0, 10),
+          price: price.price ?? "",
+          market_cap: price.market_cap ?? "",
+          price_currency: price.price_currency ?? "USD",
+        });
       } catch (e) {
-        if (alive) setError("Failed to load securities.");
+        if (alive) setError("Failed to load price.");
       } finally {
         if (alive) setLoading(false);
       }
     })();
     return () => (alive = false);
-  }, []);
+  }, [id]);
 
   const onChange = (name, value) => setForm((prev) => ({ ...prev, [name]: value }));
 
@@ -40,17 +54,18 @@ export default function SecurityPriceForm() {
     setSaving(true);
     try {
       const payload = {
+        security_price_id: Number(id),
         security_id: form.security_id === "" ? null : Number(form.security_id),
-        price_source: form.price_source || "MANUAL",
+        price_source: form.price_source,
         price_date: form.price_date,
         price: form.price === "" ? null : Number(form.price),
         market_cap: form.market_cap === "" ? null : Number(form.market_cap),
-        price_currency: form.price_currency || "USD",
+        price_currency: form.price_currency,
       };
-      await api.createSecurityPrice(payload);
+      await api.updateSecurityPrice(id, payload);
       navigate("/security-prices", { replace: true });
     } catch (e) {
-      setError("Failed to save price.");
+      setError("Failed to update price.");
     } finally {
       setSaving(false);
     }
@@ -60,7 +75,7 @@ export default function SecurityPriceForm() {
 
   return (
     <div>
-      <h1 style={{ marginTop: 0 }}>Add Security Price</h1>
+      <h1 style={{ marginTop: 0 }}>Edit Security Price</h1>
       <form onSubmit={onSubmit} style={{ background: "white", padding: 16, borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", display: "grid", gap: 12, maxWidth: 640 }}>
         <label style={{ display: "grid", gap: 6 }}>
           <span>Security *</span>
@@ -86,7 +101,6 @@ export default function SecurityPriceForm() {
             value={form.price_source}
             onChange={(e) => onChange("price_source", e.target.value)}
             required
-            placeholder="e.g. MANUAL, VENDOR_A"
             style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
           />
         </label>
@@ -132,7 +146,6 @@ export default function SecurityPriceForm() {
             value={form.price_currency}
             onChange={(e) => onChange("price_currency", e.target.value)}
             required
-            placeholder="USD"
             style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
           />
         </label>

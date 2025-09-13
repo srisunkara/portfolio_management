@@ -141,7 +141,7 @@ export default function SecurityPricesList() {
         </Link>
       </div>
 
-      <div style={{ background: "white", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflow: "auto", marginTop: 12 }}>
+      <div style={{ background: "white", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflow: "auto", marginTop: 12, maxHeight: "calc(100vh - 180px)" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 960 }}>
           <thead style={{ background: "#f1f5f9" }}>
             <tr>
@@ -150,6 +150,7 @@ export default function SecurityPricesList() {
                   {labelize(f.name)}
                 </th>
               ))}
+              <th style={{ textAlign: "left", padding: 12, whiteSpace: "nowrap" }}>Actions</th>
             </tr>
             <tr>
               {fields.map((f) => (
@@ -180,6 +181,7 @@ export default function SecurityPricesList() {
                   )}
                 </th>
               ))}
+              <th />
             </tr>
           </thead>
           <tbody>
@@ -192,12 +194,18 @@ export default function SecurityPricesList() {
                       {renderCell(p[f.name], f)}
                     </td>
                   ))}
+                  <td style={{ padding: 12, display: "flex", gap: 8, whiteSpace: "nowrap" }}>
+                    <Link to={`/security-prices/${id}/edit`}>Edit</Link>
+                    <Link to={`/security-prices/${id}/delete`} style={{ color: "#b91c1c" }}>
+                      Delete
+                    </Link>
+                  </td>
                 </tr>
               );
             })}
             {filteredRows.length === 0 && (
               <tr>
-                <td colSpan={fields.length} style={{ padding: 16, textAlign: "center", color: "#64748b" }}>
+                <td colSpan={fields.length + 1} style={{ padding: 16, textAlign: "center", color: "#64748b" }}>
                   No prices found.
                 </td>
               </tr>

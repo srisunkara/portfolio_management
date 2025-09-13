@@ -6,9 +6,9 @@ import { getOrderedFields, renderCell, labelize, modelFieldDefs } from "../../mo
 export default function TransactionsList() {
   const [rows, setRows] = React.useState([]);
   const [fields, setFields] = React.useState([]);
+  const [filters, setFilters] = React.useState({});
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
-  const [filters, setFilters] = React.useState({});
 
   React.useEffect(() => {
     let alive = true;
@@ -16,7 +16,6 @@ export default function TransactionsList() {
       try {
         const f = getOrderedFields("TransactionFullView");
         if (alive) setFields(f);
-
         const txns = await api.listTransactionsFull();
         if (alive) setRows(txns);
       } catch (e) {
@@ -28,17 +27,14 @@ export default function TransactionsList() {
     return () => (alive = false);
   }, []);
 
-  const onFilterChange = (name, value) => {
-    setFilters((prev) => ({ ...prev, [name]: value }));
-  };
-
+  const onFilterChange = (name, value) => setFilters((prev) => ({ ...prev, [name]: value }));
   const clearFilters = () => setFilters({});
 
   const compareNumberWithOp = (value, filterStr) => {
     if (filterStr == null || filterStr === "") return true;
     if (value == null || value === "") return false;
     const s = String(filterStr).trim();
-    const m = s.match(/^(<=|>=|=|<|>)\s*(-?\d+(\.\d+)?)$/);
+    const m = s.match(/^(<=|>=|=|<|>)\s*(-?\d+(?:\.\d+)?)/);
     if (m) {
       const op = m[1];
       const num = parseFloat(m[2]);
@@ -51,7 +47,6 @@ export default function TransactionsList() {
       if (op === ">=") return v >= num;
       return false;
     }
-    // fallback to substring match
     return String(value).toLowerCase().includes(s.toLowerCase());
   };
 
@@ -62,9 +57,7 @@ export default function TransactionsList() {
         const fv = filters[f.name];
         if (fv == null || fv === "") return true;
         const rv = row[f.name];
-        // Handle by type
         if (f.type === "date") {
-          // Expect YYYY-MM-DD exact match
           if (!rv) return false;
           const rvStr =
             typeof rv === "string" && /^\d{4}-\d{2}-\d{2}$/.test(rv)
@@ -72,7 +65,6 @@ export default function TransactionsList() {
               : (() => {
                   const d = new Date(rv);
                   if (Number.isNaN(d.getTime())) return String(rv);
-                  // format to yyyy-mm-dd
                   const yyyy = d.getFullYear();
                   const mm = String(d.getMonth() + 1).padStart(2, "0");
                   const dd = String(d.getDate()).padStart(2, "0");
@@ -83,12 +75,10 @@ export default function TransactionsList() {
         if (f.type === "integer" || f.type === "number") {
           return compareNumberWithOp(rv, fv);
         }
-        // boolean -> allow "true"/"false" substring or yes/no
         if (f.type === "boolean") {
           const norm = String(rv === true ? "yes" : rv === false ? "no" : rv).toLowerCase();
           return norm.includes(String(fv).toLowerCase());
         }
-        // default string contains
         return String(rv ?? "").toLowerCase().includes(String(fv).toLowerCase());
       })
     );
@@ -113,8 +103,8 @@ export default function TransactionsList() {
         </Link>
       </div>
 
-      <div style={{ background: "white", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflow: "auto", marginTop: 12 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 960 }}>
+      <div style={{ background: "white", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflowX: "auto", overflowY: "auto", marginTop: 12, maxHeight: "calc(100vh - 160px)" }}>
+        <table style={{ width: "max-content", minWidth: "100%", borderCollapse: "collapse" }}>
           <thead style={{ background: "#f1f5f9" }}>
             <tr>
               {fields.map((f) => (
@@ -122,11 +112,11 @@ export default function TransactionsList() {
                   {labelize(f.name)}
                 </th>
               ))}
-              <th style={{ textAlign: "left", padding: 12 }}>Actions</th>
+              <th style={{ textAlign: "left", padding: 12, whiteSpace: "nowrap" }}>Actions</th>
             </tr>
             <tr>
               {fields.map((f) => (
-                <th key={`${f.name}-filter`} style={{ textAlign: "left", padding: 8 }}>
+                <th key={`${f.name}-filter`} style={{ textAlign: "left", padding: 8, whiteSpace: "nowrap" }}>
                   {f.type === "date" ? (
                     <input
                       type="date"
@@ -162,7 +152,7 @@ export default function TransactionsList() {
               return (
                 <tr key={id ?? JSON.stringify(t)} style={{ borderTop: "1px solid #e2e8f0" }}>
                   {fields.map((f) => (
-                    <td key={f.name} style={{ padding: 12 }}>
+                    <td key={f.name} style={{ padding: 12, whiteSpace: "nowrap" }}>
                       {renderCell(t[f.name], f)}
                     </td>
                   ))}

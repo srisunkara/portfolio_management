@@ -31,11 +31,11 @@ export default function App() {
   const { isAuthenticated } = useAuth();
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#f7f7f7" }}>
+    <div style={{ display: "flex", height: "100vh", width: "100%", background: "#f7f7f7", overflow: "hidden" }}>
       {isAuthenticated && (
         <TopBar />
       )}
-      <div style={{ flex: 1, padding: isAuthenticated ? "72px 16px 16px" : "16px" }}>
+      <div style={{ flex: 1, padding: isAuthenticated ? "72px 16px 16px" : "16px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
         <Routes>
           <Route path="/login" element={<Login />} />
 
