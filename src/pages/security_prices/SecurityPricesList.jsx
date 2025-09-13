@@ -1,26 +1,51 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client.js";
-import { getOrderedFields, renderCell, labelize, modelFieldDefs } from "../../models/fields.js";
+import { getOrderedFields, renderCell, labelize } from "../../models/fields.js";
 
-export default function TransactionsList() {
+export default function SecurityPricesList() {
   const [rows, setRows] = React.useState([]);
   const [fields, setFields] = React.useState([]);
+  const [filters, setFilters] = React.useState({});
+  const [securitiesById, setSecuritiesById] = React.useState({});
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
-  const [filters, setFilters] = React.useState({});
 
   React.useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const f = getOrderedFields("TransactionFullView");
-        if (alive) setFields(f);
+        // Base fields from model
+        const base = getOrderedFields("SecurityPriceDtl");
+        // Insert derived columns after `security_id`
+        const idx = base.findIndex((f) => f.name === "security_id");
+        const augmented = [...base];
+        const derived = [
+          { name: "security_ticker", type: "string" },
+          { name: "security_name", type: "string" },
+        ];
+        if (idx >= 0) {
+          augmented.splice(idx + 1, 0, ...derived);
+        } else {
+          augmented.push(...derived);
+        }
+        if (alive) setFields(augmented);
 
-        const txns = await api.listTransactionsFull();
-        if (alive) setRows(txns);
+        // Data
+        const [prices, securities] = await Promise.all([
+          api.listSecurityPrices(),
+          api.listSecurities(),
+        ]);
+        const map = {};
+        for (const s of securities || []) {
+          map[s.security_id] = { ticker: s.ticker, name: s.name };
+        }
+        if (alive) {
+          setSecuritiesById(map);
+          setRows(prices || []);
+        }
       } catch (e) {
-        if (alive) setError("Failed to load transactions.");
+        if (alive) setError("Failed to load security prices.");
       } finally {
         if (alive) setLoading(false);
       }
@@ -28,10 +53,7 @@ export default function TransactionsList() {
     return () => (alive = false);
   }, []);
 
-  const onFilterChange = (name, value) => {
-    setFilters((prev) => ({ ...prev, [name]: value }));
-  };
-
+  const onFilterChange = (name, value) => setFilters((prev) => ({ ...prev, [name]: value }));
   const clearFilters = () => setFilters({});
 
   const compareNumberWithOp = (value, filterStr) => {
@@ -51,20 +73,29 @@ export default function TransactionsList() {
       if (op === ">=") return v >= num;
       return false;
     }
-    // fallback to substring match
     return String(value).toLowerCase().includes(s.toLowerCase());
   };
 
+  const rowsWithDerived = React.useMemo(() => {
+    if (!rows.length) return rows;
+    return rows.map((r) => {
+      const sec = securitiesById[r.security_id] || {};
+      return {
+        ...r,
+        security_ticker: sec.ticker ?? "-",
+        security_name: sec.name ?? "-",
+      };
+    });
+  }, [rows, securitiesById]);
+
   const filteredRows = React.useMemo(() => {
-    if (!filters || Object.values(filters).every((v) => !v)) return rows;
-    return rows.filter((row) =>
+    if (!filters || Object.values(filters).every((v) => !v)) return rowsWithDerived;
+    return rowsWithDerived.filter((row) =>
       fields.every((f) => {
         const fv = filters[f.name];
         if (fv == null || fv === "") return true;
         const rv = row[f.name];
-        // Handle by type
         if (f.type === "date") {
-          // Expect YYYY-MM-DD exact match
           if (!rv) return false;
           const rvStr =
             typeof rv === "string" && /^\d{4}-\d{2}-\d{2}$/.test(rv)
@@ -72,7 +103,6 @@ export default function TransactionsList() {
               : (() => {
                   const d = new Date(rv);
                   if (Number.isNaN(d.getTime())) return String(rv);
-                  // format to yyyy-mm-dd
                   const yyyy = d.getFullYear();
                   const mm = String(d.getMonth() + 1).padStart(2, "0");
                   const dd = String(d.getDate()).padStart(2, "0");
@@ -83,24 +113,22 @@ export default function TransactionsList() {
         if (f.type === "integer" || f.type === "number") {
           return compareNumberWithOp(rv, fv);
         }
-        // boolean -> allow "true"/"false" substring or yes/no
         if (f.type === "boolean") {
           const norm = String(rv === true ? "yes" : rv === false ? "no" : rv).toLowerCase();
           return norm.includes(String(fv).toLowerCase());
         }
-        // default string contains
         return String(rv ?? "").toLowerCase().includes(String(fv).toLowerCase());
       })
     );
-  }, [rows, fields, filters]);
+  }, [rowsWithDerived, fields, filters]);
 
-  if (loading) return <div>Loading transactions...</div>;
+  if (loading) return <div>Loading security prices...</div>;
   if (error) return <div style={{ color: "#b91c1c" }}>{error}</div>;
 
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <h1 style={{ marginTop: 0, marginBottom: 0, flex: 1 }}>Transactions</h1>
+        <h1 style={{ marginTop: 0, marginBottom: 0, flex: 1 }}>Security Prices</h1>
         <button
           type="button"
           onClick={clearFilters}
@@ -108,8 +136,8 @@ export default function TransactionsList() {
         >
           Clear Filters
         </button>
-        <Link to="/transactions/new" style={{ background: "#0f172a", color: "white", padding: "8px 12px", borderRadius: 8, textDecoration: "none" }}>
-          Add Transaction
+        <Link to="/security-prices/new" style={{ background: "#0f172a", color: "white", padding: "8px 12px", borderRadius: 8, textDecoration: "none" }}>
+          Add Price
         </Link>
       </div>
 
@@ -122,7 +150,6 @@ export default function TransactionsList() {
                   {labelize(f.name)}
                 </th>
               ))}
-              <th style={{ textAlign: "left", padding: 12 }}>Actions</th>
             </tr>
             <tr>
               {fields.map((f) => (
@@ -153,32 +180,25 @@ export default function TransactionsList() {
                   )}
                 </th>
               ))}
-              <th />
             </tr>
           </thead>
           <tbody>
-            {filteredRows.map((t) => {
-              const id = t.transaction_id ?? t.id;
+            {filteredRows.map((p) => {
+              const id = p.security_price_id ?? p.id;
               return (
-                <tr key={id ?? JSON.stringify(t)} style={{ borderTop: "1px solid #e2e8f0" }}>
+                <tr key={id ?? JSON.stringify(p)} style={{ borderTop: "1px solid #e2e8f0" }}>
                   {fields.map((f) => (
                     <td key={f.name} style={{ padding: 12 }}>
-                      {renderCell(t[f.name], f)}
+                      {renderCell(p[f.name], f)}
                     </td>
                   ))}
-                  <td style={{ padding: 12, display: "flex", gap: 8, whiteSpace: "nowrap" }}>
-                    <Link to={`/transactions/${id}/edit`}>Edit</Link>
-                    <Link to={`/transactions/${id}/delete`} style={{ color: "#b91c1c" }}>
-                      Delete
-                    </Link>
-                  </td>
                 </tr>
               );
             })}
             {filteredRows.length === 0 && (
               <tr>
-                <td colSpan={fields.length + 1} style={{ padding: 16, textAlign: "center", color: "#64748b" }}>
-                  No transactions found.
+                <td colSpan={fields.length} style={{ padding: 16, textAlign: "center", color: "#64748b" }}>
+                  No prices found.
                 </td>
               </tr>
             )}

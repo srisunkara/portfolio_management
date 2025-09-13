@@ -42,6 +42,11 @@ export default function TopBar() {
           <MenuLink to="/securities/new">Add</MenuLink>
         </Dropdown>
 
+        <Dropdown label="Security Prices">
+          <MenuLink to="/security-prices">List</MenuLink>
+          <MenuLink to="/security-prices/new">Add</MenuLink>
+        </Dropdown>
+
         <Dropdown label="Portfolios">
           <MenuLink to="/portfolios">List</MenuLink>
           <MenuLink to="/portfolios/new">Add</MenuLink>
@@ -57,6 +62,7 @@ export default function TopBar() {
           <MenuLink to="/external-platforms">List</MenuLink>
           <MenuLink to="/external-platforms/new">Add</MenuLink>
         </Dropdown>
+
       </nav>
 
       <div style={{ marginLeft: "auto", display: "flex", gap: 12, alignItems: "center" }}>
