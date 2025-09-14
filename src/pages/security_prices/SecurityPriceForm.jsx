@@ -2,41 +2,62 @@ import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api/client.js";
 
-export default function SecurityPriceEdit() {
+export default function SecurityPriceForm() {
   const navigate = useNavigate();
   const { id } = useParams();
 
   const [securities, setSecurities] = React.useState([]);
+  const [platforms, setPlatforms] = React.useState([]);
   const [form, setForm] = React.useState({
     security_id: "",
-    price_source: "",
+    price_source_id: "",
     price_date: "",
     price: "",
     market_cap: "",
+    addl_notes: "",
     price_currency: "",
   });
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState("");
 
+  const isEdit = !!id;
+
   React.useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const [price, secs] = await Promise.all([
-          api.getSecurityPrice(id),
-          api.listSecurities(),
-        ]);
-        if (!alive) return;
-        setSecurities(secs || []);
-        setForm({
-          security_id: price.security_id ?? "",
-          price_source: price.price_source ?? "",
-          price_date: typeof price.price_date === "string" ? price.price_date : new Date(price.price_date).toISOString().slice(0, 10),
-          price: price.price ?? "",
-          market_cap: price.market_cap ?? "",
-          price_currency: price.price_currency ?? "USD",
-        });
+        if (isEdit) {
+          const [price, secs, plats] = await Promise.all([
+            api.getSecurityPrice(id),
+            api.listSecurities(),
+            api.listExternalPlatforms(),
+          ]);
+          if (!alive) return;
+          setSecurities(secs || []);
+          setPlatforms(plats || []);
+          setForm({
+            security_id: price.security_id ?? "",
+            price_source_id: price.price_source_id ?? "",
+            price_date: typeof price.price_date === "string" ? price.price_date : new Date(price.price_date).toISOString().slice(0, 10),
+            price: price.price ?? "",
+            market_cap: price.market_cap ?? "",
+            addl_notes: price.addl_notes ?? "",
+            price_currency: price.price_currency ?? "USD",
+          });
+        } else {
+          const [secs, plats] = await Promise.all([
+            api.listSecurities(),
+            api.listExternalPlatforms(),
+          ]);
+          if (!alive) return;
+          setSecurities(secs || []);
+          setPlatforms(plats || []);
+          setForm((prev) => ({
+            ...prev,
+            price_currency: "USD",
+          }));
+        }
       } catch (e) {
         if (alive) setError("Failed to load price.");
       } finally {
@@ -44,7 +65,7 @@ export default function SecurityPriceEdit() {
       }
     })();
     return () => (alive = false);
-  }, [id]);
+  }, [id, isEdit]);
 
   const onChange = (name, value) => setForm((prev) => ({ ...prev, [name]: value }));
 
@@ -56,13 +77,18 @@ export default function SecurityPriceEdit() {
       const payload = {
         security_price_id: Number(id),
         security_id: form.security_id === "" ? null : Number(form.security_id),
-        price_source: form.price_source,
+        price_source_id: form.price_source_id === "" ? null : Number(form.price_source_id),
         price_date: form.price_date,
         price: form.price === "" ? null : Number(form.price),
         market_cap: form.market_cap === "" ? null : Number(form.market_cap),
+        addl_notes: form.addl_notes || null,
         price_currency: form.price_currency,
       };
-      await api.updateSecurityPrice(id, payload);
+      if (isEdit) {
+        await api.updateSecurityPrice(id, payload);
+      } else {
+        await api.createSecurityPrice(payload);
+      }
       navigate("/security-prices", { replace: true });
     } catch (e) {
       setError("Failed to update price.");
@@ -75,8 +101,11 @@ export default function SecurityPriceEdit() {
 
   return (
     <div>
-      <h1 style={{ marginTop: 0 }}>Edit Security Price</h1>
-      <form onSubmit={onSubmit} style={{ background: "white", padding: 16, borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", display: "grid", gap: 12, maxWidth: 640 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <h1 style={{ marginTop: 0, marginBottom: 0, flex: 1 }}>{isEdit ? "Edit Security Price" : "Add Security Price"}</h1>
+      </div>
+      <div style={{ background: "white", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflowY: "auto", overflowX: "auto", marginTop: 12, maxHeight: "calc(100vh - 160px)", padding: 16 }}>
+      <form onSubmit={onSubmit} style={{ display: "grid", gap: 12, maxWidth: 640 }}>
         <label style={{ display: "grid", gap: 6 }}>
           <span>Security *</span>
           <select
@@ -96,13 +125,19 @@ export default function SecurityPriceEdit() {
 
         <label style={{ display: "grid", gap: 6 }}>
           <span>Price Source *</span>
-          <input
-            type="text"
-            value={form.price_source}
-            onChange={(e) => onChange("price_source", e.target.value)}
+          <select
+            value={form.price_source_id}
+            onChange={(e) => onChange("price_source_id", e.target.value === "" ? "" : Number(e.target.value))}
             required
             style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
-          />
+          >
+            <option value="">Select a source…</option>
+            {platforms.map((ep) => (
+              <option key={ep.external_platform_id} value={ep.external_platform_id}>
+                {ep.name} ({ep.external_platform_id})
+              </option>
+            ))}
+          </select>
         </label>
 
         <label style={{ display: "grid", gap: 6 }}>
@@ -123,6 +158,8 @@ export default function SecurityPriceEdit() {
             step="any"
             value={form.price}
             onChange={(e) => onChange("price", e.target.value === "" ? "" : Number(e.target.value))}
+            onWheel={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            inputMode="decimal"
             required
             style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
           />
@@ -135,7 +172,19 @@ export default function SecurityPriceEdit() {
             step="any"
             value={form.market_cap}
             onChange={(e) => onChange("market_cap", e.target.value === "" ? "" : Number(e.target.value))}
+            onWheel={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            inputMode="decimal"
             style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+          />
+        </label>
+
+        <label style={{ display: "grid", gap: 6 }}>
+          <span>Additional Notes</span>
+          <textarea
+            value={form.addl_notes}
+            onChange={(e) => onChange("addl_notes", e.target.value)}
+            rows={3}
+            style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1", resize: "vertical" }}
           />
         </label>
 
@@ -161,6 +210,7 @@ export default function SecurityPriceEdit() {
           </button>
         </div>
       </form>
+      </div>
     </div>
   );
 }

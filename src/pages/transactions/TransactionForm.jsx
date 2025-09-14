@@ -13,6 +13,7 @@ export default function TransactionForm({ mode }) {
   const [portfolios, setPortfolios] = React.useState([]);
   const [securities, setSecurities] = React.useState([]);
   const [platforms, setPlatforms] = React.useState([]);
+  const [txnTypes, setTxnTypes] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState("");
@@ -33,12 +34,17 @@ export default function TransactionForm({ mode }) {
           }
         } else {
           for (const field of f) initial[field.name] = defaultValueForType(field.type);
+          // Default transaction_type to 'B' (Buy)
+          if (Object.prototype.hasOwnProperty.call(initial, "transaction_type")) {
+            initial.transaction_type = "B";
+          }
         }
         if (alive) {
           setFields(f);
           setPortfolios(formData?.portfolios || []);
           setSecurities(formData?.securities || []);
           setPlatforms(formData?.external_platforms || []);
+          setTxnTypes(formData?.transaction_types || []);
           setForm(initial);
         }
       } catch (e) {
@@ -76,10 +82,13 @@ export default function TransactionForm({ mode }) {
 
   return (
     <div>
-      <h1 style={{ marginTop: 0 }}>{isEdit ? "Edit Transaction" : "Add Transaction"}</h1>
-      <form onSubmit={onSubmit} style={{ background: "white", padding: 16, borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", display: "grid", gap: 12, maxWidth: 960 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <h1 style={{ marginTop: 0, marginBottom: 0, flex: 1 }}>{isEdit ? "Edit Transaction" : "Add Transaction"}</h1>
+      </div>
+      <div style={{ background: "white", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflowY: "auto", overflowX: "auto", marginTop: 12, maxHeight: "calc(100vh - 160px)", padding: 16 }}>
+      <form onSubmit={onSubmit} style={{ display: "grid", gap: 12, maxWidth: 960 }}>
         {fields.map((f) => (
-          <FieldInput key={f.name} field={f} value={form[f.name]} onChange={onChange} portfolios={portfolios} securities={securities} platforms={platforms} />
+          <FieldInput key={f.name} field={f} value={form[f.name]} onChange={onChange} portfolios={portfolios} securities={securities} platforms={platforms} txnTypes={txnTypes} />
         ))}
         {error && <div style={{ color: "#b91c1c" }}>{error}</div>}
         <div style={{ display: "flex", gap: 8 }}>
@@ -91,11 +100,12 @@ export default function TransactionForm({ mode }) {
           </button>
         </div>
       </form>
+      </div>
     </div>
   );
 }
 
-function FieldInput({ field, value, onChange, portfolios = [], securities = [], platforms = [] }) {
+function FieldInput({ field, value, onChange, portfolios = [], securities = [], platforms = [], txnTypes = [] }) {
   const { name, type, required } = field;
 
   if (name === "portfolio_id") {
@@ -123,6 +133,19 @@ function FieldInput({ field, value, onChange, portfolios = [], securities = [], 
             <option key={s.security_id} value={s.security_id}>
               {(s.ticker || s.name)} ({s.security_id})
             </option>
+          ))}
+        </select>
+      </label>
+    );
+  }
+  if (name === "transaction_type") {
+    // Select with options (label shown, code stored)
+    return (
+      <label style={{ display: "grid", gap: 6 }}>
+        <span>Transaction Type{required ? " *" : ""}</span>
+        <select value={value ?? ""} onChange={(e) => onChange(name, e.target.value)} required={!!required} style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}>
+          {(txnTypes && txnTypes.length > 0 ? txnTypes : [{ code: "B", label: "Buy" }, { code: "S", label: "Sell" }]).map((t) => (
+            <option key={t.code} value={t.code}>{t.label}</option>
           ))}
         </select>
       </label>
@@ -161,6 +184,8 @@ function FieldInput({ field, value, onChange, portfolios = [], securities = [], 
           type="number"
           value={value ?? ""}
           onChange={(e) => onChange(name, e.target.value === "" ? "" : Number(e.target.value))}
+          onWheel={(e) => { e.preventDefault(); e.stopPropagation(); /* prevent accidental wheel changes */ }}
+          inputMode={type === "integer" ? "numeric" : "decimal"}
           step={type === "integer" ? 1 : "any"}
           required={!!required}
           style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}

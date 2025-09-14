@@ -10,6 +10,23 @@ class TransactionCRUD(BaseCRUD[TransactionDtl]):
     def __init__(self):
         super().__init__(TransactionDtl)
 
+    @staticmethod
+    def _normalize_type(ttype: Optional[str]) -> str:
+        from source_code.models.models import TRANSACTION_TYPES
+        if ttype is None:
+            return "B"
+        s = str(ttype).strip()
+        if not s:
+            return "B"
+        u = s.upper()
+        if u in TRANSACTION_TYPES:
+            return u
+        # allow labels like "Buy"/"Sell"
+        rev = {v.upper(): k for k, v in TRANSACTION_TYPES.items()}
+        if u in rev:
+            return rev[u]
+        raise ValueError("Invalid transaction_type; expected one of: " + ", ".join(list(TRANSACTION_TYPES.keys())))
+
     def list_full(self) -> List[TransactionFullView]:
         rows = pg_db_conn_manager.fetch_data(
             "SELECT * FROM v_transaction_full ORDER BY transaction_id"
@@ -42,7 +59,7 @@ class TransactionCRUD(BaseCRUD[TransactionDtl]):
             security_id=item.security_id,
             external_platform_id=item.external_platform_id,
             transaction_date=item.transaction_date,
-            transaction_type=item.transaction_type,
+            transaction_type=self._normalize_type(item.transaction_type),
             transaction_qty=item.transaction_qty,
             transaction_price=item.transaction_price,
             transaction_fee=item.transaction_fee,
@@ -147,7 +164,7 @@ class TransactionCRUD(BaseCRUD[TransactionDtl]):
             item.security_id,
             item.external_platform_id,
             item.transaction_date,
-            item.transaction_type,
+            self._normalize_type(item.transaction_type),
             item.transaction_qty,
             item.transaction_price,
             item.transaction_fee,

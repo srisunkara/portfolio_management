@@ -190,25 +190,26 @@ class MockDB:
             return 1 if self.tables['holding_dtl'].pop(pk, None) is not None else 0
 
         if 'insert into security_price_dtl' in sql_low:
-            (security_price_id, security_id, price_source, price_date, price, market_cap, price_currency, created_ts, last_updated_ts) = params
+            (security_price_id, security_id, price_source_id, price_date, price, market_cap, addl_notes, price_currency, created_ts, last_updated_ts) = params
             self.tables['security_price_dtl'][security_price_id] = {
                 'security_price_id': security_price_id,
                 'security_id': security_id,
-                'price_source': price_source,
+                'price_source_id': price_source_id,
                 'price_date': price_date,
                 'price': price,
                 'market_cap': market_cap,
+                'addl_notes': addl_notes,
                 'price_currency': price_currency,
                 'created_ts': created_ts,
                 'last_updated_ts': last_updated_ts,
             }
             return 1
         if sql_low.startswith('update security_price_dtl'):
-            (security_id, price_source, price_date, price, market_cap, price_currency, last_updated_ts, pk) = params
+            (security_id, price_source_id, price_date, price, market_cap, addl_notes, price_currency, last_updated_ts, pk) = params
             row = self.tables['security_price_dtl'].get(pk)
             if not row:
                 return 0
-            row.update({'security_id': security_id, 'price_source': price_source, 'price_date': price_date, 'price': price, 'market_cap': market_cap, 'price_currency': price_currency, 'last_updated_ts': last_updated_ts})
+            row.update({'security_id': security_id, 'price_source_id': price_source_id, 'price_date': price_date, 'price': price, 'market_cap': market_cap, 'addl_notes': addl_notes, 'price_currency': price_currency, 'last_updated_ts': last_updated_ts})
             return 1
         if sql_low.startswith('delete from security_price_dtl'):
             pk = params[0]

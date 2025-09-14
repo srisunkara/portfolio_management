@@ -26,6 +26,7 @@ import TradingPlatformDelete from "./pages/external_platforms/ExternalPlatformDe
 // Add Security Prices pages
 import SecurityPricesList from "./pages/security_prices/SecurityPricesList.jsx";
 import SecurityPriceForm from "./pages/security_prices/SecurityPriceForm.jsx";
+import SecurityPriceDelete from "./pages/security_prices/SecurityPriceDelete.jsx";
 
 export default function App() {
   const { isAuthenticated } = useAuth();
@@ -76,6 +77,8 @@ export default function App() {
           {/* Security Prices */}
           <Route path="/security-prices" element={<ProtectedRoute><SecurityPricesList /></ProtectedRoute>} />
           <Route path="/security-prices/new" element={<ProtectedRoute><SecurityPriceForm /></ProtectedRoute>} />
+          <Route path="/security-prices/:id/edit" element={<ProtectedRoute><SecurityPriceForm /></ProtectedRoute>} />
+          <Route path="/security-prices/:id/delete" element={<ProtectedRoute><SecurityPriceDelete /></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/login"} replace />} />
         </Routes>

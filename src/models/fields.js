@@ -53,10 +53,11 @@ export const modelFieldDefs = {
   SecurityPriceDtl: [
     { name: "security_price_id", type: "integer", readOnly: true },
     { name: "security_id", type: "integer" },
-    { name: "price_source", type: "string" },
+    { name: "price_source_id", type: "integer" },
     { name: "price_date", type: "date" },
     { name: "price", type: "number" },
     { name: "market_cap", type: "number" },
+    { name: "addl_notes", type: "string" },
     { name: "price_currency", type: "string" },
     { name: "created_ts", type: "string", format: "date-time", readOnly: true },
     { name: "last_updated_ts", type: "string", format: "date-time", readOnly: true },
@@ -82,16 +83,10 @@ export const modelFieldDefs = {
     { name: "last_updated_ts", type: "string", format: "date-time", readOnly: true },
   ],
   TransactionFullView: [
-    { name: "transaction_id", type: "integer", readOnly: true },
-    { name: "portfolio_id", type: "integer" },
-    { name: "portfolio_name", type: "string" },
-    { name: "user_id", type: "integer" },
     { name: "user_full_name", type: "string" },
-    { name: "security_id", type: "integer" },
+    { name: "portfolio_name", type: "string" },
     { name: "security_ticker", type: "string" },
     { name: "security_name", type: "string" },
-    { name: "external_platform_id", type: "integer" },
-    { name: "external_platform_name", type: "string" },
     { name: "transaction_date", type: "date" },
     { name: "transaction_type", type: "string" },
     { name: "transaction_qty", type: "number" },
@@ -109,6 +104,12 @@ export const modelFieldDefs = {
     { name: "net_amount", type: "number" },
     { name: "created_ts", type: "string", format: "date-time", readOnly: true },
     { name: "last_updated_ts", type: "string", format: "date-time", readOnly: true },
+    { name: "external_platform_name", type: "string" },
+    { name: "transaction_id", type: "integer", readOnly: true },
+    { name: "portfolio_id", type: "integer" },
+    { name: "user_id", type: "integer" },
+    { name: "security_id", type: "integer" },
+    { name: "external_platform_id", type: "integer" },
   ],
 };
 
@@ -149,6 +150,8 @@ export function coerceValue(val, field) {
   return val;
 }
 
+import { transactionTypeLabel } from "./dictionaries.js";
+
 export function renderCell(value, field) {
   if (value == null) return "-";
   if (field.format === "date-time" || field.type === "date-time") {
@@ -164,5 +167,6 @@ export function renderCell(value, field) {
     return isNaN(d) ? String(value) : d.toLocaleDateString();
   }
   if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (field?.name === "transaction_type") return transactionTypeLabel(value);
   return String(value);
 }

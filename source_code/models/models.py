@@ -58,6 +58,12 @@ class PortfolioDtlInput(BaseModel):
 
 ALLOWED_PLATFORM_TYPES = ["Trading Platform", "Pricing Platform", "Secondary Trading Platform"]
 
+# Common dictionary for transaction types: store codes, display labels
+TRANSACTION_TYPES: dict[str, str] = {
+    "B": "Buy",
+    "S": "Sell",
+}
+
 
 class ExternalPlatformDtl(BaseModel):
     external_platform_id: int
@@ -138,10 +144,11 @@ class HoldingDtlInput(BaseModel):
 class SecurityPriceDtl(BaseModel):
     security_price_id: int
     security_id: int
-    price_source: str
+    price_source_id: int
     price_date: date = date.today()
     price: float
-    market_cap: float
+    market_cap: float = 0.0
+    addl_notes: str = None
     price_currency: str = 'USD'
     created_ts: datetime = datetime.now(timezone.utc)
     last_updated_ts: datetime = datetime.now(timezone.utc)
@@ -149,10 +156,11 @@ class SecurityPriceDtl(BaseModel):
 
 class SecurityPriceDtlInput(BaseModel):
     security_id: int
-    price_source: str
+    price_source_id: int
     price_date: date = date.today()
     price: float
-    market_cap: float
+    market_cap: float = 0.0
+    addl_notes: str = None
     price_currency: str = 'USD'
     created_ts: datetime = datetime.now(timezone.utc)
     last_updated_ts: datetime = datetime.now(timezone.utc)

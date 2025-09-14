@@ -37,7 +37,7 @@ def test_holdings_crud(client: TestClient):
 def test_security_prices_crud(client: TestClient):
     payload = {
         "security_id": 301,
-        "price_source": "MANUAL",
+        "price_source_id": 401,
         "price_date": date.today().isoformat(),
         "price": 99.5,
         "market_cap": 1_000_000.0,

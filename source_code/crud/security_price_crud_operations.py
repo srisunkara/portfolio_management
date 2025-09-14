@@ -12,7 +12,7 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
 
     def list_all(self) -> List[SecurityPriceDtl]:
         rows = pg_db_conn_manager.fetch_data(
-            "SELECT security_price_id, security_id, price_source, price_date, price, market_cap, price_currency, created_ts, last_updated_ts "
+            "SELECT security_price_id, security_id, price_source_id, price_date, price, market_cap, addl_notes, price_currency, created_ts, last_updated_ts "
             "FROM security_price_dtl ORDER BY security_price_id"
         )
         return [SecurityPriceDtl(**row) for row in rows]
@@ -24,30 +24,40 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
         price = SecurityPriceDtl(
             security_price_id=next_price_id,
             security_id=item.security_id,
-            price_source=item.price_source,
+            price_source_id=item.price_source_id,
             price_date=item.price_date,
             price=item.price,
             market_cap=item.market_cap,
+            addl_notes=item.addl_notes,
             price_currency=item.price_currency,
             created_ts=now,
             last_updated_ts=now,
         )
         sql = """
         INSERT INTO security_price_dtl (
-            security_price_id, security_id, price_source, price_date, price, market_cap, price_currency, created_ts, last_updated_ts
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            security_price_id, security_id, price_source_id, price_date, price, market_cap, addl_notes, price_currency, created_ts, last_updated_ts
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (security_price_id) DO UPDATE SET
             security_id = EXCLUDED.security_id,
-            price_source = EXCLUDED.price_source,
+            price_source_id = EXCLUDED.price_source_id,
             price_date = EXCLUDED.price_date,
             price = EXCLUDED.price,
             market_cap = EXCLUDED.market_cap,
+            addl_notes = EXCLUDED.addl_notes,
             price_currency = EXCLUDED.price_currency,
             last_updated_ts = EXCLUDED.last_updated_ts
         """
         params = (
-            price.security_price_id, price.security_id, price.price_source, price.price_date,
-            price.price, price.market_cap, price.price_currency, price.created_ts, price.last_updated_ts
+            price.security_price_id,
+            price.security_id,
+            price.price_source_id,
+            price.price_date,
+            price.price,
+            price.market_cap,
+            price.addl_notes,
+            price.price_currency,
+            price.created_ts,
+            price.last_updated_ts,
         )
         affected = pg_db_conn_manager.execute_query(sql, params)
         if affected == 0:
@@ -63,7 +73,7 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
 
     def get_security(self, pk: int) -> Optional[SecurityPriceDtl]:
         rows = pg_db_conn_manager.fetch_data(
-            "SELECT security_price_id, security_id, price_source, price_date, price, market_cap, price_currency, created_ts, last_updated_ts "
+            "SELECT security_price_id, security_id, price_source_id, price_date, price, market_cap, addl_notes, price_currency, created_ts, last_updated_ts "
             "FROM security_price_dtl WHERE security_price_id = %s",
             (pk,),
         )
@@ -81,17 +91,25 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
         UPDATE security_price_dtl
         SET
             security_id = %s,
-            price_source = %s,
+            price_source_id = %s,
             price_date = %s,
             price = %s,
             market_cap = %s,
+            addl_notes = %s,
             price_currency = %s,
             last_updated_ts = %s
         WHERE security_price_id = %s
         """
         params = (
-            item.security_id, item.price_source, item.price_date, item.price, item.market_cap,
-            item.price_currency, date_utils.get_current_date_time(), pk
+            item.security_id,
+            item.price_source_id,
+            item.price_date,
+            item.price,
+            item.market_cap,
+            item.addl_notes,
+            item.price_currency,
+            date_utils.get_current_date_time(),
+            pk,
         )
         affected = pg_db_conn_manager.execute_query(sql, params)
         if affected == 0:

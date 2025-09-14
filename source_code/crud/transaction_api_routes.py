@@ -61,10 +61,13 @@ def get_transaction_form_data() -> dict[str, Any]:
     except Exception:
         platforms = []
 
+    from source_code.models.models import TRANSACTION_TYPES
+
     return {
         "portfolios": portfolios,
         "securities": securities,
         "external_platforms": platforms,
+        "transaction_types": [{"code": k, "label": v} for k, v in TRANSACTION_TYPES.items()],
     }
 
 
