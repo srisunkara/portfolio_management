@@ -119,8 +119,8 @@ export default function Holdings() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((h) => (
-              <tr key={h.holding_id ?? JSON.stringify(h)} style={{ borderTop: "1px solid #e2e8f0" }}>
+            {filtered.map((h, idx) => (
+              <tr key={h.holding_id ?? JSON.stringify(h)} style={{ borderTop: "1px solid #e2e8f0", background: idx % 2 === 1 ? "#f8fafc" : "white" }}>
                 <td style={{ padding: 12 }}>{h.holding_id}</td>
                 <td style={{ padding: 12 }}>{h.holding_dt}</td>
                 <td style={{ padding: 12 }}>{h.portfolio_id}</td>

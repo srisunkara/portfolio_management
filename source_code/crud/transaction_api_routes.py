@@ -105,7 +105,7 @@ def delete_transaction(transaction_id: int):
     return {"deleted": True}
 
 
-# Expected headers (case-insensitive): portfolio_id, security_id, external_platform_id, transaction_date, transaction_type, transaction_qty, transaction_price, [fees...]
+# Expected headers (case-insensitive): portfolio_id, security_id, external_platform_id, transaction_date, transaction_type, transaction_qty, transaction_price, [total_inv_amt], [fees...]
 @router.post("/bulk-csv", response_model=list[TransactionDtl])
 async def upload_transactions_csv(file: UploadFile = File(...)):
     if not file.filename.lower().endswith(".csv"):
@@ -147,6 +147,10 @@ async def upload_transactions_csv(file: UploadFile = File(...)):
                 v = get_val(k)
                 return float(v) if v else default
 
+            # Optional total investment amount
+            total_inv_amt_val = get_val("total_inv_amt")
+            total_inv_amt = float(total_inv_amt_val) if total_inv_amt_val else (qty * price)
+
             items.append(TransactionDtlInput(
                 portfolio_id=portfolio_id,
                 security_id=security_id,
@@ -163,6 +167,7 @@ async def upload_transactions_csv(file: UploadFile = File(...)):
                 management_fee_percent=fnum("management_fee_percent"),
                 external_manager_fee=fnum("external_manager_fee"),
                 external_manager_fee_percent=fnum("external_manager_fee_percent"),
+                total_inv_amt=total_inv_amt,
             ))
         except ValueError:
             raise HTTPException(status_code=400, detail=f"Row {row_num}: invalid value(s)")
@@ -181,6 +186,7 @@ def export_transactions_csv() -> Response:
         "transaction_qty", "transaction_price", "transaction_fee", "transaction_fee_percent", "carry_fee",
         "carry_fee_percent",
         "management_fee", "management_fee_percent", "external_manager_fee", "external_manager_fee_percent",
+        "total_inv_amt",
         "created_ts", "last_updated_ts"
     ]
     writer.writerow(header)
@@ -194,6 +200,7 @@ def export_transactions_csv() -> Response:
             getattr(t, "carry_fee_percent", ""),
             getattr(t, "management_fee", ""), getattr(t, "management_fee_percent", ""),
             getattr(t, "external_manager_fee", ""), getattr(t, "external_manager_fee_percent", ""),
+            getattr(t, "total_inv_amt", ""),
             getattr(t, "created_ts", ""), getattr(t, "last_updated_ts", ""),
         ])
     csv_data = output.getvalue()

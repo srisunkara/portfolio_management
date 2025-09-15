@@ -44,7 +44,7 @@ class TransactionCRUD(BaseCRUD[TransactionDtl]):
         rows = pg_db_conn_manager.fetch_data(
             "SELECT transaction_id, portfolio_id, security_id, external_platform_id, transaction_date, transaction_type, "
             "transaction_qty, transaction_price, transaction_fee, transaction_fee_percent, carry_fee, carry_fee_percent, "
-            "management_fee, management_fee_percent, external_manager_fee, external_manager_fee_percent, created_ts, last_updated_ts "
+            "management_fee, management_fee_percent, external_manager_fee, external_manager_fee_percent, total_inv_amt, created_ts, last_updated_ts "
             "FROM transaction_dtl ORDER BY transaction_id"
         )
         return [TransactionDtl(**row) for row in rows]
@@ -70,6 +70,7 @@ class TransactionCRUD(BaseCRUD[TransactionDtl]):
             management_fee_percent=item.management_fee_percent,
             external_manager_fee=item.external_manager_fee,
             external_manager_fee_percent=item.external_manager_fee_percent,
+            total_inv_amt=item.total_inv_amt if getattr(item, 'total_inv_amt', None) is not None else (item.transaction_qty * item.transaction_price),
             created_ts=now,
             last_updated_ts=now,
         )
@@ -78,12 +79,12 @@ class TransactionCRUD(BaseCRUD[TransactionDtl]):
             transaction_id, portfolio_id, security_id, external_platform_id, transaction_date, transaction_type,
             transaction_qty, transaction_price, transaction_fee, transaction_fee_percent,
             carry_fee, carry_fee_percent, management_fee, management_fee_percent,
-            external_manager_fee, external_manager_fee_percent, created_ts, last_updated_ts
+            external_manager_fee, external_manager_fee_percent, total_inv_amt, created_ts, last_updated_ts
         ) VALUES (
             %s, %s, %s, %s, %s, %s,
             %s, %s, %s, %s,
             %s, %s, %s, %s,
-            %s, %s, %s, %s
+            %s, %s, %s, %s, %s
         )
         ON CONFLICT (transaction_id) DO UPDATE SET
             portfolio_id = EXCLUDED.portfolio_id,
@@ -101,6 +102,7 @@ class TransactionCRUD(BaseCRUD[TransactionDtl]):
             management_fee_percent = EXCLUDED.management_fee_percent,
             external_manager_fee = EXCLUDED.external_manager_fee,
             external_manager_fee_percent = EXCLUDED.external_manager_fee_percent,
+            total_inv_amt = EXCLUDED.total_inv_amt,
             last_updated_ts = EXCLUDED.last_updated_ts
         """
         params = (
@@ -108,7 +110,7 @@ class TransactionCRUD(BaseCRUD[TransactionDtl]):
             txn.transaction_type,
             txn.transaction_qty, txn.transaction_price, txn.transaction_fee, txn.transaction_fee_percent,
             txn.carry_fee, txn.carry_fee_percent, txn.management_fee, txn.management_fee_percent,
-            txn.external_manager_fee, txn.external_manager_fee_percent, txn.created_ts, txn.last_updated_ts
+            txn.external_manager_fee, txn.external_manager_fee_percent, txn.total_inv_amt, txn.created_ts, txn.last_updated_ts
         )
         affected = pg_db_conn_manager.execute_query(sql, params)
         if affected == 0:
@@ -120,7 +122,7 @@ class TransactionCRUD(BaseCRUD[TransactionDtl]):
             "SELECT transaction_id, portfolio_id, security_id, external_platform_id, transaction_date, transaction_type, "
             "transaction_qty, transaction_price, transaction_fee, transaction_fee_percent, "
             "carry_fee, carry_fee_percent, management_fee, management_fee_percent, "
-            "external_manager_fee, external_manager_fee_percent, created_ts, last_updated_ts "
+            "external_manager_fee, external_manager_fee_percent, total_inv_amt, created_ts, last_updated_ts "
             "FROM transaction_dtl WHERE transaction_id = %s",
             (pk,),
         )
@@ -156,6 +158,7 @@ class TransactionCRUD(BaseCRUD[TransactionDtl]):
             management_fee_percent = %s,
             external_manager_fee = %s,
             external_manager_fee_percent = %s,
+            total_inv_amt = %s,
             last_updated_ts = %s
         WHERE transaction_id = %s
         """
@@ -175,6 +178,7 @@ class TransactionCRUD(BaseCRUD[TransactionDtl]):
             item.management_fee_percent,
             item.external_manager_fee,
             item.external_manager_fee_percent,
+            (item.total_inv_amt if getattr(item, 'total_inv_amt', None) is not None else (item.transaction_qty * item.transaction_price)),
             now,
             pk,
         )

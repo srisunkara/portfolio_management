@@ -219,7 +219,7 @@ class MockDB:
             (transaction_id, portfolio_id, security_id, external_platform_id, transaction_date, transaction_type,
              transaction_qty, transaction_price, transaction_fee, transaction_fee_percent,
              carry_fee, carry_fee_percent, management_fee, management_fee_percent,
-             external_manager_fee, external_manager_fee_percent, created_ts, last_updated_ts) = params
+             external_manager_fee, external_manager_fee_percent, total_inv_amt, created_ts, last_updated_ts) = params
             self.tables['transaction_dtl'][transaction_id] = {
                 'transaction_id': transaction_id,
                 'portfolio_id': portfolio_id,
@@ -237,6 +237,7 @@ class MockDB:
                 'management_fee_percent': management_fee_percent,
                 'external_manager_fee': external_manager_fee,
                 'external_manager_fee_percent': external_manager_fee_percent,
+                'total_inv_amt': total_inv_amt,
                 'created_ts': created_ts,
                 'last_updated_ts': last_updated_ts,
             }
@@ -244,7 +245,7 @@ class MockDB:
         if sql_low.startswith('update transaction_dtl'):
             (portfolio_id, security_id, external_platform_id, transaction_date, transaction_type, transaction_qty, transaction_price,
              transaction_fee, transaction_fee_percent, carry_fee, carry_fee_percent, management_fee, management_fee_percent,
-             external_manager_fee, external_manager_fee_percent, last_updated_ts, pk) = params
+             external_manager_fee, external_manager_fee_percent, total_inv_amt, last_updated_ts, pk) = params
             row = self.tables['transaction_dtl'].get(pk)
             if not row:
                 return 0
@@ -264,6 +265,7 @@ class MockDB:
                 'management_fee_percent': management_fee_percent,
                 'external_manager_fee': external_manager_fee,
                 'external_manager_fee_percent': external_manager_fee_percent,
+                'total_inv_amt': total_inv_amt,
                 'last_updated_ts': last_updated_ts,
             })
             return 1

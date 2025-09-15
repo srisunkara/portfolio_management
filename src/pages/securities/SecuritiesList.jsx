@@ -2,6 +2,8 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client.js";
 import { getOrderedFields, renderCell, labelize } from "../../models/fields.js";
+import editImg from "../../images/edit.png";
+import deleteImg from "../../images/delete.png";
 
 export default function SecuritiesList() {
   const [rows, setRows] = React.useState([]);
@@ -109,14 +111,15 @@ export default function SecuritiesList() {
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 720 }}>
           <thead style={{ background: "#f1f5f9" }}>
             <tr>
+              <th style={{ textAlign: "left", padding: 12, whiteSpace: "nowrap" }}>Actions</th>
               {fields.map((f) => (
                 <th key={f.name} style={{ textAlign: "left", padding: 12, whiteSpace: "nowrap" }}>
                   {labelize(f.name)}
                 </th>
               ))}
-              <th style={{ textAlign: "left", padding: 12 }}>Actions</th>
             </tr>
             <tr>
+              <th style={{ padding: 8 }} />
               {fields.map((f) => (
                 <th key={`${f.name}-filter`} style={{ textAlign: "left", padding: 8 }}>
                   {f.type === "date" ? (
@@ -149,21 +152,25 @@ export default function SecuritiesList() {
             </tr>
           </thead>
           <tbody>
-            {filteredRows.map((s) => {
+            {filteredRows.map((s, idx) => {
               const id = s.security_id ?? s.id ?? s.ID;
               return (
-                <tr key={id ?? JSON.stringify(s)} style={{ borderTop: "1px solid #e2e8f0" }}>
+                <tr key={id ?? JSON.stringify(s)} style={{ borderTop: "1px solid #e2e8f0", background: idx % 2 === 1 ? "#f8fafc" : "white" }}>
+                  <td style={{ padding: 12, whiteSpace: "nowrap" }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <Link to={`/securities/${id}/edit`} title="Edit" aria-label="Edit security">
+                        <img src={editImg} alt="Edit" style={{ width: 20, height: 20 }} />
+                      </Link>
+                      <Link to={`/securities/${id}/delete`} title="Delete" aria-label="Delete security">
+                        <img src={deleteImg} alt="Delete" style={{ width: 20, height: 20 }} />
+                      </Link>
+                    </div>
+                  </td>
                   {fields.map((f) => (
                     <td key={f.name} style={{ padding: 12 }}>
                       {renderCell(s[f.name], f)}
                     </td>
                   ))}
-                  <td style={{ padding: 12, display: "flex", gap: 8, whiteSpace: "nowrap" }}>
-                    <Link to={`/securities/${id}/edit`}>Edit</Link>
-                    <Link to={`/securities/${id}/delete`} style={{ color: "#b91c1c" }}>
-                      Delete
-                    </Link>
-                  </td>
                 </tr>
               );
             })}

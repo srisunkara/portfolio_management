@@ -61,6 +61,9 @@ SELECT
         + COALESCE(t.management_fee, 0)
         + COALESCE(t.external_manager_fee, 0)))                              AS net_amount,
 
+    -- Persisted or computed total investment amount
+    t.total_inv_amt,
+
     -- Timestamps
     t.created_ts,
     t.last_updated_ts

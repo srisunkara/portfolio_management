@@ -2,6 +2,8 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client.js";
 import { getOrderedFields, renderCell, labelize } from "../../models/fields.js";
+import editImg from "../../images/edit.png";
+import deleteImg from "../../images/delete.png";
 
 export default function SecurityPricesList() {
   const [rows, setRows] = React.useState([]);
@@ -145,14 +147,15 @@ export default function SecurityPricesList() {
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 960 }}>
           <thead style={{ background: "#f1f5f9" }}>
             <tr>
+              <th style={{ textAlign: "left", padding: 12, whiteSpace: "nowrap" }}>Actions</th>
               {fields.map((f) => (
                 <th key={f.name} style={{ textAlign: "left", padding: 12, whiteSpace: "nowrap" }}>
                   {labelize(f.name)}
                 </th>
               ))}
-              <th style={{ textAlign: "left", padding: 12, whiteSpace: "nowrap" }}>Actions</th>
             </tr>
             <tr>
+              <th style={{ padding: 8 }} />
               {fields.map((f) => (
                 <th key={`${f.name}-filter`} style={{ textAlign: "left", padding: 8 }}>
                   {f.type === "date" ? (
@@ -185,21 +188,25 @@ export default function SecurityPricesList() {
             </tr>
           </thead>
           <tbody>
-            {filteredRows.map((p) => {
+            {filteredRows.map((p, idx) => {
               const id = p.security_price_id ?? p.id;
               return (
-                <tr key={id ?? JSON.stringify(p)} style={{ borderTop: "1px solid #e2e8f0" }}>
+                <tr key={id ?? JSON.stringify(p)} style={{ borderTop: "1px solid #e2e8f0", background: idx % 2 === 1 ? "#f8fafc" : "white" }}>
+                  <td style={{ padding: 12, whiteSpace: "nowrap" }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <Link to={`/security-prices/${id}/edit`} title="Edit" aria-label="Edit price">
+                        <img src={editImg} alt="Edit" style={{ width: 20, height: 20 }} />
+                      </Link>
+                      <Link to={`/security-prices/${id}/delete`} title="Delete" aria-label="Delete price">
+                        <img src={deleteImg} alt="Delete" style={{ width: 20, height: 20 }} />
+                      </Link>
+                    </div>
+                  </td>
                   {fields.map((f) => (
                     <td key={f.name} style={{ padding: 12 }}>
                       {renderCell(p[f.name], f)}
                     </td>
                   ))}
-                  <td style={{ padding: 12, display: "flex", gap: 8, whiteSpace: "nowrap" }}>
-                    <Link to={`/security-prices/${id}/edit`}>Edit</Link>
-                    <Link to={`/security-prices/${id}/delete`} style={{ color: "#b91c1c" }}>
-                      Delete
-                    </Link>
-                  </td>
                 </tr>
               );
             })}
