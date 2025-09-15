@@ -18,4 +18,4 @@ build/
 # Logs and databases
 *.log
 *.sqlite
-*.pyc
+
