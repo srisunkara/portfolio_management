@@ -1,18 +1,29 @@
 import React from "react";
 import { api } from "../../api/client.js";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 export default function Holdings() {
   const [data, setData] = React.useState([]);
   const [filters, setFilters] = React.useState({});
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
+  const { user } = useAuth();
+  const [myPortfolioIds, setMyPortfolioIds] = React.useState([]);
 
   React.useEffect(() => {
     let isMounted = true;
     (async () => {
       try {
-        const res = await api.getHoldings();
-        if (isMounted) setData(res);
+        const [res, portfolios] = await Promise.all([
+          api.getHoldings(),
+          api.listPortfolios(),
+        ]);
+        const uid = user?.user_id || user?.id || user?.userId;
+        const mineIds = uid ? (portfolios || []).filter(p=>p.user_id === uid).map(p=>p.portfolio_id) : (portfolios || []).map(p=>p.portfolio_id);
+        if (isMounted) {
+          setMyPortfolioIds(mineIds);
+          setData(res);
+        }
       } catch (e) {
         if (isMounted) setError("Failed to load holdings.");
       } finally {
@@ -48,8 +59,9 @@ export default function Holdings() {
   };
 
   const filtered = React.useMemo(() => {
-    if (!filters || Object.values(filters).every((v) => !v)) return data;
-    return data.filter((h) => {
+    const scoped = (myPortfolioIds && myPortfolioIds.length) ? data.filter(h => myPortfolioIds.includes(h.portfolio_id)) : data;
+    if (!filters || Object.values(filters).every((v) => !v)) return scoped;
+    return scoped.filter((h) => {
       const checks = [];
       checks.push(String(h.holding_id ?? "").toLowerCase().includes(String(filters.holding_id ?? "").toLowerCase()));
       const dt = h.holding_dt;

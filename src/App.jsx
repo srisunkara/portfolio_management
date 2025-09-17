@@ -1,6 +1,7 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login.jsx";
+import Register from "./pages/Register.jsx";
 import Holdings from "./pages/holdings/Holdings.jsx";
 import PortfoliosList from "./pages/portfolios/Portfolio.jsx";
 import PortfolioForm from "./pages/portfolios/PortfolioForm.jsx";
@@ -39,6 +40,7 @@ export default function App() {
       <div style={{ flex: 1, padding: isAuthenticated ? "72px 16px 16px" : "16px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
           <Route path="/" element={<ProtectedRoute><Holdings /></ProtectedRoute>} />
           <Route path="/holdings" element={<ProtectedRoute><Holdings /></ProtectedRoute>} />

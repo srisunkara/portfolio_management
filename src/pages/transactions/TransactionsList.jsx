@@ -1,12 +1,14 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client.js";
+import { useAuth } from "../../context/AuthContext.jsx";
 import { getOrderedFields, renderCell, labelize, modelFieldDefs } from "../../models/fields.js";
 import editImg from "../../images/edit.png";
 import deleteImg from "../../images/delete.png";
 
 export default function TransactionsList() {
   const [rows, setRows] = React.useState([]);
+  const { user } = useAuth();
   const [fields, setFields] = React.useState([]);
   const [filters, setFilters] = React.useState({});
   const [loading, setLoading] = React.useState(true);
@@ -19,7 +21,9 @@ export default function TransactionsList() {
         const f = getOrderedFields("TransactionFullView");
         if (alive) setFields(f);
         const txns = await api.listTransactionsFull();
-        if (alive) setRows(txns);
+        const uid = user?.user_id || user?.id || user?.userId;
+        const myTxns = uid ? (txns || []).filter(t => t.user_id === uid) : (txns || []);
+        if (alive) setRows(myTxns);
       } catch (e) {
         if (alive) setError("Failed to load transactions.");
       } finally {

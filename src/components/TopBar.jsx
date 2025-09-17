@@ -54,7 +54,6 @@ export default function TopBar() {
 
         <Dropdown label="Users">
           <MenuLink to="/users">List</MenuLink>
-          <MenuLink to="/users/new">Add</MenuLink>
           <MenuLink to="/users/change-password">Change Password</MenuLink>
         </Dropdown>
 

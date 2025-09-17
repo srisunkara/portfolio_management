@@ -61,6 +61,9 @@ export default function Login() {
         <button type="submit" disabled={loading} style={{ marginTop: 8, background: "#0f172a", color: "white", border: "none", padding: "10px 12px", borderRadius: 8, cursor: "pointer", opacity: loading ? 0.7 : 1 }}>
           {loading ? "Signing in..." : "Sign in"}
         </button>
+        <div style={{ fontSize: 14 }}>
+          Need an account? <a href="/register">Create one</a>
+        </div>
       </form>
     </div>
   );

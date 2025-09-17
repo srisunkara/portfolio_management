@@ -100,9 +100,6 @@ export default function UsersList() {
         >
           Clear Filters
         </button>
-        <Link to="/users/new" style={{ background: "#0f172a", color: "white", padding: "8px 12px", borderRadius: 8, textDecoration: "none" }}>
-          Add User
-        </Link>
       </div>
 
       <div style={{ background: "white", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflow: "auto", marginTop: 12, maxHeight: "calc(100vh - 160px)" }}>

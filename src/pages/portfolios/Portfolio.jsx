@@ -1,12 +1,14 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client.js";
+import { useAuth } from "../../context/AuthContext.jsx";
 import { getOrderedFields, renderCell, labelize } from "../../models/fields.js";
 import editImg from "../../images/edit.png";
 import deleteImg from "../../images/delete.png";
 
 export default function PortfoliosList() {
   const [rows, setRows] = React.useState([]);
+  const { user } = useAuth();
   const [fields, setFields] = React.useState([]);
   const [filters, setFilters] = React.useState({});
   const [loading, setLoading] = React.useState(true);
@@ -30,7 +32,9 @@ export default function PortfoliosList() {
           ...p,
           user_name: userMap.get(p.user_id) || `User ${p.user_id}`,
         }));
-        if (alive) setRows(withUserName);
+        const uid = user?.user_id || user?.id || user?.userId;
+        const mine = uid ? withUserName.filter(p => p.user_id === uid) : withUserName;
+        if (alive) setRows(mine);
       } catch (e) {
         if (alive) setError("Failed to load portfolios.");
       } finally {
