@@ -13,7 +13,7 @@ class UserCRUD(BaseCRUD[UserDtl]):
 
     def list_all(self) -> List[UserDtl]:
         rows = pg_db_conn_manager.fetch_data(
-            "SELECT user_id, first_name, last_name, email, password_hash, created_ts, last_updated_ts "
+            "SELECT user_id, first_name, last_name, email, password_hash, is_admin, created_ts, last_updated_ts "
             "FROM user_dtl ORDER BY user_id"
         )
         return [UserDtl(**row) for row in rows]
@@ -30,11 +30,12 @@ class UserCRUD(BaseCRUD[UserDtl]):
             last_name=item.last_name,
             email=item.email,
             password_hash=password_hash,
+            is_admin=False,
             created_ts=now,
             last_updated_ts=now,
         )
-        columns = ["user_id", "first_name", "last_name", "created_ts", "last_updated_ts"]
-        values = [user.user_id, user.first_name, user.last_name, user.created_ts, user.last_updated_ts]
+        columns = ["user_id", "first_name", "last_name", "is_admin", "created_ts", "last_updated_ts"]
+        values = [user.user_id, user.first_name, user.last_name, user.is_admin, user.created_ts, user.last_updated_ts]
         if user.email is not None:
             columns.insert(3, "email")
             values.insert(3, user.email)
@@ -46,6 +47,7 @@ class UserCRUD(BaseCRUD[UserDtl]):
         update_assignments = [
             "first_name = EXCLUDED.first_name",
             "last_name = EXCLUDED.last_name",
+            "is_admin = EXCLUDED.is_admin",
             "last_updated_ts = EXCLUDED.last_updated_ts",
         ]
         if user.email is not None:
@@ -65,7 +67,7 @@ class UserCRUD(BaseCRUD[UserDtl]):
 
     def get_security(self, pk: int) -> Optional[UserDtl]:
         rows = pg_db_conn_manager.fetch_data(
-            "SELECT user_id, first_name, last_name, email, password_hash, created_ts, last_updated_ts "
+            "SELECT user_id, first_name, last_name, email, password_hash, is_admin, created_ts, last_updated_ts "
             "FROM user_dtl WHERE user_id = %s",
             (pk,),
         )
@@ -89,6 +91,7 @@ class UserCRUD(BaseCRUD[UserDtl]):
             last_name = %s,
             email = %s,
             password_hash = %s,
+            -- is_admin not settable via standard update path; remains unchanged unless elevated admin endpoint
             last_updated_ts = %s
         WHERE user_id = %s
         """
@@ -116,7 +119,7 @@ class UserCRUD(BaseCRUD[UserDtl]):
     # Add User-specific operations here if needed
     def get_by_email(self, email: str) -> Optional[UserDtl]:
         rows = pg_db_conn_manager.fetch_data(
-            "SELECT user_id, first_name, last_name, email, password_hash, created_ts, last_updated_ts "
+            "SELECT user_id, first_name, last_name, email, password_hash, is_admin, created_ts, last_updated_ts "
             "FROM user_dtl WHERE email = %s LIMIT 1",
             (email,),
         )

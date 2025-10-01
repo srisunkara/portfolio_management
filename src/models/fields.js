@@ -35,6 +35,7 @@ export const modelFieldDefs = {
     { name: "first_name", type: "string" },
     { name: "last_name", type: "string" },
     { name: "email", type: "string" },
+    { name: "is_admin", type: "boolean", readOnly: true },
     // We do not expose password_hash in forms; for create/edit, accept an optional 'password' input field
     { name: "created_ts", type: "string", format: "date-time", readOnly: true },
     { name: "last_updated_ts", type: "string", format: "date-time", readOnly: true },
@@ -84,11 +85,11 @@ export const modelFieldDefs = {
     { name: "last_updated_ts", type: "string", format: "date-time", readOnly: true },
   ],
   TransactionFullView: [
-    { name: "user_full_name", type: "string" },
     { name: "portfolio_name", type: "string" },
     { name: "security_ticker", type: "string" },
     { name: "security_name", type: "string" },
-    { name: "transaction_date", type: "date" },
+      { name: "total_inv_amt", type: "number" },
+      { name: "transaction_date", type: "date" },
     { name: "transaction_type", type: "string" },
     { name: "transaction_qty", type: "number" },
     { name: "transaction_price", type: "number" },
@@ -103,10 +104,10 @@ export const modelFieldDefs = {
     { name: "gross_amount", type: "number" },
     { name: "total_fee", type: "number" },
     { name: "net_amount", type: "number" },
-    { name: "total_inv_amt", type: "number" },
     { name: "created_ts", type: "string", format: "date-time", readOnly: true },
     { name: "last_updated_ts", type: "string", format: "date-time", readOnly: true },
     { name: "external_platform_name", type: "string" },
+    { name: "user_full_name", type: "string" },
     { name: "transaction_id", type: "integer", readOnly: true },
     { name: "portfolio_id", type: "integer" },
     { name: "user_id", type: "integer" },
@@ -167,6 +168,17 @@ export function renderCell(value, field) {
     }
     const d = new Date(value);
     return isNaN(d) ? String(value) : d.toLocaleDateString();
+  }
+  // Format numeric fields with commas and 2 decimals across the app
+  if (field?.type === "number") {
+    const num = typeof value === "number" ? value : Number(value);
+    if (!Number.isFinite(num)) return String(value);
+    try {
+      return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    } catch (e) {
+      // Fallback in unlikely environments without Intl support
+      return num.toFixed(2);
+    }
   }
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (field?.name === "transaction_type") return transactionTypeLabel(value);

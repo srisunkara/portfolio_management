@@ -18,6 +18,7 @@ import SecuritiesList from "./pages/securities/SecuritiesList.jsx";
 import SecurityForm from "./pages/securities/SecurityForm.jsx";
 import SecurityDelete from "./pages/securities/SecurityDelete.jsx";
 import UsersList from "./pages/users/UsersList.jsx";
+import MyProfile from "./pages/users/MyProfile.jsx";
 import UserForm from "./pages/users/UserForm.jsx";
 import UserDelete from "./pages/users/UserDelete.jsx";
 import UserChangePassword from "./pages/users/UserChangePassword.jsx";
@@ -64,7 +65,8 @@ export default function App() {
           <Route path="/securities/:id/delete" element={<ProtectedRoute><SecurityDelete /></ProtectedRoute>} />
 
           {/* Users */}
-          <Route path="/users" element={<ProtectedRoute><UsersList /></ProtectedRoute>} />
+          <Route path="/users" element={<ProtectedRoute><MyProfile /></ProtectedRoute>} />
+          <Route path="/users/all" element={<ProtectedRoute><UsersList /></ProtectedRoute>} />
           <Route path="/users/new" element={<ProtectedRoute><UserForm mode="create" /></ProtectedRoute>} />
           <Route path="/users/:id/edit" element={<ProtectedRoute><UserForm mode="edit" /></ProtectedRoute>} />
           <Route path="/users/:id/delete" element={<ProtectedRoute><UserDelete /></ProtectedRoute>} />

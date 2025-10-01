@@ -53,7 +53,11 @@ export default function TopBar() {
         </Dropdown>
 
         <Dropdown label="Users">
-          <MenuLink to="/users">List</MenuLink>
+          <MenuLink to="/users">My Profile</MenuLink>
+          {/* Admin-only: List Users */}
+          { (user?.is_admin || user?.isAdmin) ? (
+            <MenuLink to="/users/all">List Users</MenuLink>
+          ) : null }
           <MenuLink to="/users/change-password">Change Password</MenuLink>
         </Dropdown>
 
@@ -65,7 +69,18 @@ export default function TopBar() {
       </nav>
 
       <div style={{ marginLeft: "auto", display: "flex", gap: 12, alignItems: "center" }}>
-        <div style={{ opacity: 0.9, fontSize: 14 }}>{user?.email}</div>
+        <div style={{ opacity: 0.9, fontSize: 14 }}>
+          {(() => {
+            if (!user) return "";
+            const first = user.first_name || user.firstName || "";
+            const last = user.last_name || user.lastName || "";
+            const combined = `${first} ${last}`.replace(/\s+/g, " ").trim();
+            const altName = user.full_name || user.fullName || user.name || "";
+            const displayName = (combined && combined !== "") ? combined : (altName || "");
+            const email = user.email || user.username || "";
+            return displayName ? `${displayName} — ${email}` : email;
+          })()}
+        </div>
         <button onClick={logout} style={{ background: "#ef4444", border: "none", color: "white", padding: "6px 10px", borderRadius: 6, cursor: "pointer" }}>
           Logout
         </button>

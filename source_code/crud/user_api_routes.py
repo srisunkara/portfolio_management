@@ -195,5 +195,5 @@ def login(body: LoginRequest):
     return {
         "access_token": token,
         "token_type": "bearer",
-        "user": {"id": user.user_id, "email": user.email},
+        "user": {"id": user.user_id, "email": user.email, "is_admin": getattr(user, "is_admin", False)},
     }

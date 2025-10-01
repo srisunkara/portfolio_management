@@ -11,6 +11,7 @@ class UserDtl(BaseModel):
     last_name: str
     email: str = None
     password_hash: str = None
+    is_admin: bool = False
     created_ts: datetime = datetime.now(timezone.utc)
     last_updated_ts: datetime = datetime.now(timezone.utc)
 
@@ -20,6 +21,8 @@ class UserDtlInput(BaseModel):
     last_name: str
     email: str = None
     password: str = None
+    # Do not allow clients to set admin via public APIs; default False
+    is_admin: bool = False
 
 
 class SecurityDtl(BaseModel):

@@ -14,7 +14,7 @@ class DatabaseConfig:
         self.db_host = os.getenv('DB_HOST', 'localhost')
         self.db_name = os.getenv('DB_NAME', 'investment_db')
         self.db_user = os.getenv('DB_USER', 'postgres')
-        self.db_pass = os.getenv('DB_PASS', 'admin')
+        self.db_pass = os.getenv('DB_PASS')
         self.db_port = os.getenv('DB_PORT', '5432')
 
     def get_connection_string(self):
