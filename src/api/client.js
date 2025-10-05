@@ -64,6 +64,8 @@ export const api = {
   createHolding: (payload) => request("/holdings/", { method: "POST", body: JSON.stringify(payload) }),
   updateHolding: (id, payload) => request(`/holdings/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteHolding: (id) => request(`/holdings/${id}`, { method: "DELETE" }),
+  // Holdings maintenance
+  recalcHoldings: (date) => request(`/holdings/recalculate`, { method: "POST", body: JSON.stringify({ date }) }),
 
   // Security Prices
   listSecurityPrices: () => request("/security-prices", { method: "GET" }),
@@ -71,6 +73,8 @@ export const api = {
   createSecurityPrice: (payload) => request("/security-prices/", { method: "POST", body: JSON.stringify(payload) }),
   updateSecurityPrice: (id, payload) => request(`/security-prices/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteSecurityPrice: (id) => request(`/security-prices/${id}`, { method: "DELETE" }),
+  // Admin maintenance
+  downloadPrices: (date) => request(`/security-prices/download`, { method: "POST", body: JSON.stringify({ date }) }),
 
   // Transactions
   listTransactions: () => request("/transactions", { method: "GET" }),

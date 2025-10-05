@@ -66,6 +66,11 @@ export default function TopBar() {
           <MenuLink to="/users/change-password">Change Password</MenuLink>
         </Dropdown>
 
+        <Dropdown label="Portfolio Admin">
+          <MenuLink to="/holdings/recalculate">Recalculate Holdings</MenuLink>
+          <MenuLink to="/portfolio-admin/download-prices">Download Prices</MenuLink>
+        </Dropdown>
+
       </nav>
 
       <div style={{ marginLeft: "auto", display: "flex", gap: 12, alignItems: "center" }}>

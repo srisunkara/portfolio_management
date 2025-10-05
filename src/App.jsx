@@ -11,6 +11,7 @@ import TransactionForm from "./pages/transactions/TransactionForm.jsx";
 import TransactionDelete from "./pages/transactions/TransactionDelete.jsx";
 import HoldingForm from "./pages/holdings/HoldingForm.jsx";
 import HoldingDelete from "./pages/holdings/HoldingDelete.jsx";
+import HoldingsRecalculate from "./pages/holdings/HoldingsRecalculate.jsx";
 import TopBar from "./components/TopBar.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
@@ -29,6 +30,7 @@ import TradingPlatformDelete from "./pages/external_platforms/ExternalPlatformDe
 import SecurityPricesList from "./pages/security_prices/SecurityPricesList.jsx";
 import SecurityPriceForm from "./pages/security_prices/SecurityPriceForm.jsx";
 import SecurityPriceDelete from "./pages/security_prices/SecurityPriceDelete.jsx";
+import PortfolioAdminDownloadPrices from "./pages/admin/PortfolioAdminDownloadPrices.jsx";
 
 export default function App() {
   const { isAuthenticated } = useAuth();
@@ -48,6 +50,7 @@ export default function App() {
           <Route path="/holdings/new" element={<ProtectedRoute><HoldingForm mode="create" /></ProtectedRoute>} />
           <Route path="/holdings/:id/edit" element={<ProtectedRoute><HoldingForm mode="edit" /></ProtectedRoute>} />
           <Route path="/holdings/:id/delete" element={<ProtectedRoute><HoldingDelete /></ProtectedRoute>} />
+          <Route path="/holdings/recalculate" element={<ProtectedRoute><HoldingsRecalculate /></ProtectedRoute>} />
           <Route path="/portfolios" element={<ProtectedRoute><PortfoliosList /></ProtectedRoute>} />
           <Route path="/portfolios/new" element={<ProtectedRoute><PortfolioForm mode="create" /></ProtectedRoute>} />
           <Route path="/portfolios/:id/edit" element={<ProtectedRoute><PortfolioForm mode="edit" /></ProtectedRoute>} />
@@ -83,6 +86,9 @@ export default function App() {
           <Route path="/security-prices/new" element={<ProtectedRoute><SecurityPriceForm /></ProtectedRoute>} />
           <Route path="/security-prices/:id/edit" element={<ProtectedRoute><SecurityPriceForm /></ProtectedRoute>} />
           <Route path="/security-prices/:id/delete" element={<ProtectedRoute><SecurityPriceDelete /></ProtectedRoute>} />
+
+          {/* Portfolio Admin */}
+          <Route path="/portfolio-admin/download-prices" element={<ProtectedRoute><PortfolioAdminDownloadPrices /></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/login"} replace />} />
         </Routes>

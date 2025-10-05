@@ -1,6 +1,7 @@
 # source_code/crud/security_price_api_routes.py
 from datetime import datetime, date
 
+import pandas as pd
 from fastapi import APIRouter, HTTPException
 from fastapi import UploadFile, File
 import csv
@@ -8,7 +9,10 @@ import io
 from fastapi.responses import Response
 
 from source_code.crud.security_price_crud_operations import security_price_crud
+from source_code.crud.security_crud_operations import security_crud
 from source_code.models.models import SecurityPriceDtl, SecurityPriceDtlInput
+from pydantic import BaseModel
+import yfinance as yf
 
 router = APIRouter(prefix="/security-prices", tags=["Security Prices"])
 
@@ -135,6 +139,115 @@ def export_security_prices_csv() -> Response:
         headers={"Content-Disposition": 'attachment; filename="security_prices.csv"'}
     )
 
+class DownloadPricesRequest(BaseModel):
+    date: date
+
+@router.post("/download")
+def download_prices(req: DownloadPricesRequest) -> dict:
+    """
+    Download daily prices for all securities (by ticker) for a given date from Yahoo Finance
+    and store them in security_price_dtl. Uses a fixed price_source_id=401 (Yahoo Finance).
+    Skips securities without ticker or when price is unavailable for the date.
+    """
+    target_date = req.date
+    ret_data = download_prices_by_date(target_date)
+    return ret_data
+
+
+def download_prices_by_date(target_date: date) -> dict:
+    """
+    Download daily prices for all securities (by ticker) for a given date from Yahoo Finance
+    and store them in security_price_dtl. Uses a fixed price_source_id=401 (Yahoo Finance).
+    Skips securities without ticker or when price is unavailable for the date.
+    """
+    securities = security_crud.list_all()
+    attempted = 0
+    saved = 0
+    skipped = 0
+    errors: list[str] = []
+    YAHOO_SOURCE_ID = 1759649078984028  # Yahoo Finance pricing source ID
+
+    # yfinance best practice: batch tickers when possible; but for simplicity and reliability here, iterate
+    for s in securities:
+        ticker = (s.ticker or "").strip()
+        if not ticker:
+            skipped += 1
+            continue
+        attempted += 1
+        try:
+            tk = yf.Ticker(ticker)
+            # fetch a small date window around the target to accommodate timezone differences
+            start = target_date.strftime("%Y-%m-%d")
+            end_dt = target_date.toordinal() + 1  # +1 day
+            from datetime import date as _d, timedelta
+            end = (_d.fromordinal(end_dt)).strftime("%Y-%m-%d")
+            hist = tk.history(start=start, end=end, auto_adjust=False)
+            if hist is None or len(hist) == 0:
+                skipped += 1
+                continue
+            # Try to find a row matching date index; if not, take the last row (for some tickers intraday/UTC offsets)
+            close_price = None
+            # yfinance returns a pandas DataFrame; index may be Timestamp
+            try:
+                # exact date match
+                if target_date.strftime("%Y-%m-%d") in [str(idx)[:10] for idx in hist.index]:
+                    for idx, row in hist.iterrows():
+                        if str(idx)[:10] == target_date.strftime("%Y-%m-%d"):
+                            close_price = float(row.get("Close") or row.get("close"))
+                            break
+            except Exception:
+                close_price = None
+            if close_price is None:
+                # fallback to last row
+                last_row = hist.tail(1)
+                if last_row is not None and len(last_row) > 0:
+                    try:
+                        close_price = float(last_row["Close"][0])
+                    except Exception:
+                        try:
+                            close_price = float(last_row.iloc[0].get("Close") or last_row.iloc[0].get("close"))
+                        except Exception:
+                            close_price = None
+            if close_price is None or not (close_price > 0):
+                skipped += 1
+                continue
+
+            # Save price
+            try:
+                spi = SecurityPriceDtlInput(
+                    security_id=s.security_id,
+                    price_source_id=YAHOO_SOURCE_ID,
+                    price_date=target_date,
+                    price=round(close_price, 4),
+                    market_cap=0.0,
+                    addl_notes="Yahoo",
+                    price_currency=(s.security_currency or "USD").upper(),
+                )
+                security_price_crud.save(spi)
+                saved += 1
+            except Exception as se:
+                errors.append(f"save {ticker}: {se}")
+        except Exception as e:
+            errors.append(f"{ticker}: {e}")
+            skipped += 1
+
+    return {
+        "date": target_date.isoformat(),
+        "attempted": int(attempted),
+        "saved": int(saved),
+        "skipped": int(skipped),
+        "errors": errors,
+    }
+
+
+@router.post("/download-date-range")
+def download_prices_for_date_range(start_date: date, end_date: date):
+    # get all valid dates between start_date and end_date
+    dates = [d.date() for d in pd.date_range(start_date, end_date)]
+    for d in dates:
+        download_prices_by_date(d)
+
+
 @router.put("/{security_price_id}", response_model=SecurityPriceDtl)
 def update_security_price(security_price_id: int, price: SecurityPriceDtlInput):
     try:
@@ -149,3 +262,7 @@ def delete_security_price(security_price_id: int):
     if not security_price_crud.delete(security_price_id):
         raise HTTPException(status_code=404, detail="Security price not found")
     return {"deleted": True}
+
+
+if __name__ == "__main__":
+    download_prices_for_date_range(date(2025, 10, 1), date(2025, 10, 3))

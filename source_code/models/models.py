@@ -131,6 +131,7 @@ class HoldingDtl(BaseModel):
     security_id: int
     quantity: float
     price: float
+    avg_price: float = 0.0
     market_value: float
     created_ts: datetime = datetime.now(timezone.utc)
     last_updated_ts: datetime = datetime.now(timezone.utc)
@@ -143,6 +144,7 @@ class HoldingDtlInput(BaseModel):
     security_id: int
     quantity: float
     price: float
+    avg_price: float = 0.0
     market_value: float
 
 

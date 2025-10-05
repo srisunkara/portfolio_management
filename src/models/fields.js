@@ -47,6 +47,7 @@ export const modelFieldDefs = {
     { name: "security_id", type: "integer" },
     { name: "quantity", type: "number" },
     { name: "price", type: "number" },
+    { name: "avg_price", type: "number" },
     { name: "market_value", type: "number" },
     { name: "created_ts", type: "string", format: "date-time", readOnly: true },
     { name: "last_updated_ts", type: "string", format: "date-time", readOnly: true },

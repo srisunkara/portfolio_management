@@ -6,6 +6,8 @@ import datetime
 from fastapi import APIRouter, HTTPException
 from fastapi import UploadFile, File
 from fastapi.responses import Response
+from pydantic import BaseModel
+from datetime import date as _date
 
 from source_code.crud.holding_crud_operations import holding_crud
 from source_code.models.models import HoldingDtl, HoldingDtlInput
@@ -114,7 +116,7 @@ def export_holdings_csv() -> Response:
     output = io.StringIO()
     writer = csv.writer(output)
 
-    header = ["holding_id", "holding_dt", "portfolio_id", "security_id", "quantity", "price", "market_value",
+    header = ["holding_id", "holding_dt", "portfolio_id", "security_id", "quantity", "price", "avg_price", "market_value",
               "created_ts", "last_updated_ts"]
     writer.writerow(header)
     for h in items:
@@ -125,6 +127,7 @@ def export_holdings_csv() -> Response:
             getattr(h, "security_id", ""),
             getattr(h, "quantity", ""),
             getattr(h, "price", ""),
+            getattr(h, "avg_price", ""),
             getattr(h, "market_value", ""),
             getattr(h, "created_ts", ""),
             getattr(h, "last_updated_ts", ""),
@@ -154,3 +157,17 @@ def delete_holding(holding_id: int):
     if not holding_crud.delete(holding_id):
         raise HTTPException(status_code=404, detail="Holding not found")
     return {"deleted": True}
+
+
+# Recalculate holdings for a given date
+class RecalcRequest(BaseModel):
+    date: _date
+
+
+@router.post("/recalculate")
+def recalc_holdings(req: RecalcRequest) -> dict:
+    try:
+        summary = holding_crud.recalc_for_date(req.date)
+        return {"date": req.date, **summary}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

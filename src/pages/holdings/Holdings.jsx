@@ -74,6 +74,7 @@ export default function Holdings() {
       checks.push(String(h.security_id ?? "").toLowerCase().includes(String(filters.security_id ?? "").toLowerCase()));
       checks.push(compareNumberWithOp(h.quantity, filters.quantity ?? ""));
       checks.push(compareNumberWithOp(h.price, filters.price ?? ""));
+      checks.push(compareNumberWithOp(h.avg_price, filters.avg_price ?? ""));
       checks.push(compareNumberWithOp(h.market_value, filters.market_value ?? ""));
       return checks.every(Boolean);
     });
@@ -104,6 +105,7 @@ export default function Holdings() {
               <th style={{ textAlign: "left", padding: 12 }}>Security Id</th>
               <th style={{ textAlign: "left", padding: 12 }}>Quantity</th>
               <th style={{ textAlign: "left", padding: 12 }}>Price</th>
+              <th style={{ textAlign: "left", padding: 12 }}>Avg Price</th>
               <th style={{ textAlign: "left", padding: 12 }}>Market Value</th>
             </tr>
             <tr>
@@ -126,6 +128,9 @@ export default function Holdings() {
                 <input type="text" placeholder="e.g. >=1" value={filters.price ?? ""} onChange={(e)=>onFilterChange("price", e.target.value)} style={{ width: "100%", maxWidth: 140, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }} />
               </th>
               <th style={{ textAlign: "left", padding: 8 }}>
+                <input type="text" placeholder="e.g. >=1" value={filters.avg_price ?? ""} onChange={(e)=>onFilterChange("avg_price", e.target.value)} style={{ width: "100%", maxWidth: 140, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }} />
+              </th>
+              <th style={{ textAlign: "left", padding: 8 }}>
                 <input type="text" placeholder="e.g. >1000" value={filters.market_value ?? ""} onChange={(e)=>onFilterChange("market_value", e.target.value)} style={{ width: "100%", maxWidth: 160, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }} />
               </th>
             </tr>
@@ -139,6 +144,7 @@ export default function Holdings() {
                 <td style={{ padding: 12 }}>{h.security_id}</td>
                 <td style={{ padding: 12 }}>{h.quantity}</td>
                 <td style={{ padding: 12 }}>{h.price}</td>
+                <td style={{ padding: 12 }}>{h.avg_price}</td>
                 <td style={{ padding: 12 }}>{h.market_value}</td>
               </tr>
             ))}
