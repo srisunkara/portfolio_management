@@ -80,4 +80,6 @@ export const api = {
   createTransaction: (payload) => request("/transactions/", { method: "POST", body: JSON.stringify(payload) }),
   updateTransaction: (id, payload) => request(`/transactions/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteTransaction: (id) => request(`/transactions/${id}`, { method: "DELETE" }),
+  // Maintenance
+  recalculateTransactionFees: () => request("/transactions/recalculate-fees", { method: "POST" }),
 };

@@ -208,7 +208,7 @@ class TransactionCRUD(BaseCRUD[TransactionDtl]):
             "  transaction_fee = ROUND((COALESCE(total_inv_amt, transaction_qty * transaction_price) * (COALESCE(transaction_fee_percent, 0) / 100.0))::numeric, 2),\n"
             "  external_manager_fee = ROUND((COALESCE(total_inv_amt, transaction_qty * transaction_price) * (COALESCE(external_manager_fee_percent, 0) / 100.0))::numeric, 2),\n"
             "  last_updated_ts = %s\n"
-            ")"
+            ";"
         )
         now = date_utils.get_current_date_time()
         # execute_query returns affected row count for UPDATE statements

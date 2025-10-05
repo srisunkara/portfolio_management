@@ -379,3 +379,14 @@ async def upload_transactions_by_name_csv(file: UploadFile = File(...)) -> dict[
 
 
 
+
+
+# Recalculate fees based on percent fields for all transactions
+@router.post("/recalculate-fees")
+def recalculate_fees() -> dict[str, int]:
+    try:
+        updated = transaction_crud.recalculate_fees_all()
+        return {"updated": int(updated)}
+    except Exception as e:
+        # surface a 500 with error message
+        raise HTTPException(status_code=500, detail=str(e))

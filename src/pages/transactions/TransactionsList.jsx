@@ -16,6 +16,9 @@ export default function TransactionsList() {
   // Sorting state
   const [sortBy, setSortBy] = React.useState(null); // field name
   const [sortDir, setSortDir] = React.useState("asc"); // 'asc' | 'desc'
+  // Recalculate fees
+  const [recalcLoading, setRecalcLoading] = React.useState(false);
+  const [recalcMessage, setRecalcMessage] = React.useState("");
 
   React.useEffect(() => {
     let alive = true;
@@ -35,6 +38,32 @@ export default function TransactionsList() {
     })();
     return () => (alive = false);
   }, []);
+
+  const reloadTransactions = React.useCallback(async () => {
+    try {
+      const txns = await api.listTransactionsFull();
+      const uid = user?.user_id || user?.id || user?.userId;
+      const myTxns = uid ? (txns || []).filter(t => t.user_id === uid) : (txns || []);
+      setRows(myTxns);
+    } catch (e) {
+      setError("Failed to load transactions.");
+    }
+  }, [user]);
+
+  const recalcAllFees = async () => {
+    setRecalcMessage("");
+    setRecalcLoading(true);
+    try {
+      const res = await api.recalculateTransactionFees();
+      const updated = (res && typeof res.updated === "number") ? res.updated : 0;
+      setRecalcMessage(`Recalculated fees for ${updated} transactions.`);
+      await reloadTransactions();
+    } catch (e) {
+      setRecalcMessage(e?.message || "Failed to recalculate fees.");
+    } finally {
+      setRecalcLoading(false);
+    }
+  };
 
   const onFilterChange = (name, value) => setFilters((prev) => ({ ...prev, [name]: value }));
   const clearFilters = () => setFilters({});
@@ -175,6 +204,20 @@ export default function TransactionsList() {
         >
           Clear Filters
         </button>
+        <button
+          type="button"
+          onClick={recalcAllFees}
+          disabled={recalcLoading}
+          style={{ background: recalcLoading ? "#94a3b8" : "#10b981", color: "white", padding: "8px 12px", borderRadius: 8, border: "none", cursor: recalcLoading ? "not-allowed" : "pointer" }}
+          title="Recalculate transaction and external manager fees for all transactions"
+        >
+          {recalcLoading ? "Recalculating..." : "Recalculate Fees"}
+        </button>
+        {recalcMessage ? (
+          <span style={{ color: "#0f766e", fontSize: 12 }}>
+            {recalcMessage}
+          </span>
+        ) : null}
         <Link to="/transactions/new" style={{ background: "#0f172a", color: "white", padding: "8px 12px", borderRadius: 8, textDecoration: "none" }}>
           Add Transaction
         </Link>
