@@ -13,8 +13,16 @@ class SecurityCRUD(BaseCRUD[SecurityDtl]):
 
     def list_all(self) -> List[SecurityDtl]:
         rows = pg_db_conn_manager.fetch_data(
-            "SELECT security_id, ticker, name, company_name, security_currency, created_ts, last_updated_ts "
+            "SELECT security_id, ticker, name, company_name, security_currency, is_private, created_ts, last_updated_ts "
             "FROM security_dtl ORDER BY ticker, name, security_id"
+        )
+        return [SecurityDtl(**row) for row in rows]
+
+    def list_all_public(self) -> List[SecurityDtl]:
+        rows = pg_db_conn_manager.fetch_data(
+            "SELECT security_id, ticker, name, company_name, security_currency, is_private, created_ts, last_updated_ts "
+            "FROM security_dtl where is_private = False "
+            "ORDER BY ticker, name, security_id"
         )
         return [SecurityDtl(**row) for row in rows]
 
@@ -26,23 +34,25 @@ class SecurityCRUD(BaseCRUD[SecurityDtl]):
             name=item.name,
             company_name=item.company_name,
             security_currency=item.security_currency,
+            is_private=item.is_private,
             created_ts=date_utils.get_current_date_time(),
             last_updated_ts=date_utils.get_current_date_time(),
         )
         sql = """
         INSERT INTO security_dtl (
-            security_id, ticker, name, company_name, security_currency, created_ts, last_updated_ts
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+            security_id, ticker, name, company_name, security_currency, is_private, created_ts, last_updated_ts
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (security_id) DO UPDATE SET
             ticker = EXCLUDED.ticker,
             name = EXCLUDED.name,
             company_name = EXCLUDED.company_name,
             security_currency = EXCLUDED.security_currency,
+            is_private = EXCLUDED.is_private,
             last_updated_ts = EXCLUDED.last_updated_ts
         """
         params = (
             sec_dtl.security_id, sec_dtl.ticker, sec_dtl.name, sec_dtl.company_name,
-            sec_dtl.security_currency.upper(),
+            sec_dtl.security_currency.upper(), sec_dtl.is_private,
             sec_dtl.created_ts, sec_dtl.last_updated_ts
         )
         affected = pg_db_conn_manager.execute_query(sql, params)
@@ -60,7 +70,7 @@ class SecurityCRUD(BaseCRUD[SecurityDtl]):
 
     def get_security(self, pk: int) -> Optional[SecurityDtl]:
         rows = pg_db_conn_manager.fetch_data(
-            "SELECT security_id, ticker, name, company_name, security_currency, created_ts, last_updated_ts "
+            "SELECT security_id, ticker, name, company_name, security_currency, is_private, created_ts, last_updated_ts "
             "FROM security_dtl WHERE security_id = %s",
             (pk,),
         )
@@ -84,11 +94,12 @@ class SecurityCRUD(BaseCRUD[SecurityDtl]):
             name = %s,
             company_name = %s,
             security_currency = %s,
+            is_private = %s,
             last_updated_ts = %s
         WHERE security_id = %s
         """
         params = (
-            item.ticker, item.name, item.company_name, item.security_currency.upper(), date_utils.get_current_date_time(), pk
+            item.ticker, item.name, item.company_name, item.security_currency.upper(), item.is_private, date_utils.get_current_date_time(), pk
         )
         affected = pg_db_conn_manager.execute_query(sql, params)
         if affected == 0:

@@ -31,6 +31,7 @@ class SecurityDtl(BaseModel):
     name: str
     company_name: str
     security_currency: str = 'USD'
+    is_private: bool = False
     created_ts: datetime = datetime.now(timezone.utc)
     last_updated_ts: datetime = datetime.now(timezone.utc)
 
@@ -40,6 +41,7 @@ class SecurityDtlInput(BaseModel):
     name: str
     company_name: str
     security_currency: str = 'USD'
+    is_private: bool = False
 
 
 class PortfolioDtl(BaseModel):
@@ -133,6 +135,11 @@ class HoldingDtl(BaseModel):
     price: float
     avg_price: float = 0.0
     market_value: float
+    security_price_dt: Optional[date] = None
+    # New computed fields
+    holding_cost_amt: float = 0.0
+    unreal_gain_loss_amt: float = 0.0
+    unreal_gain_loss_perc: float = 0.0
     created_ts: datetime = datetime.now(timezone.utc)
     last_updated_ts: datetime = datetime.now(timezone.utc)
 
@@ -146,6 +153,11 @@ class HoldingDtlInput(BaseModel):
     price: float
     avg_price: float = 0.0
     market_value: float
+    security_price_dt: Optional[date] = None
+    # New computed fields (accepted for completeness; generally set by backend recalc)
+    holding_cost_amt: float = 0.0
+    unreal_gain_loss_amt: float = 0.0
+    unreal_gain_loss_perc: float = 0.0
 
 
 class SecurityPriceDtl(BaseModel):

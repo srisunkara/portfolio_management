@@ -44,7 +44,7 @@ def save_holdings_bulk(holdings: list[HoldingDtlInput]):
 
 
 # Upload CSV and reuse the bulk save to persist
-# Expected headers (case-insensitive): holding_dt, portfolio_id, security_id, quantity, price, market_value
+# Expected headers (case-insensitive): holding_dt, portfolio_id, security_id, quantity, price, market_value, [security_price_dt]
 @router.post("/bulk-csv", response_model=list[HoldingDtl])
 async def upload_holdings_csv(file: UploadFile = File(...)):
     if not file.filename.lower().endswith(".csv"):
@@ -76,8 +76,10 @@ async def upload_holdings_csv(file: UploadFile = File(...)):
             quantity = get_val("quantity")
             price = get_val("price")
             market_value = get_val("market_value")
+            security_price_dt_str = get_val("security_price_dt") or None
 
             holding_dt = domain_utils.convert_to_date(holding_dt, datetime.date.today())
+            security_price_dt = domain_utils.convert_to_date(security_price_dt_str, None) if security_price_dt_str else None
 
             # Basic validations and coercions
             try:
@@ -96,6 +98,7 @@ async def upload_holdings_csv(file: UploadFile = File(...)):
                 quantity=quantity,
                 price=price,
                 market_value=market_value,
+                security_price_dt=security_price_dt,
             ))
 
         if not items:
@@ -116,7 +119,7 @@ def export_holdings_csv() -> Response:
     output = io.StringIO()
     writer = csv.writer(output)
 
-    header = ["holding_id", "holding_dt", "portfolio_id", "security_id", "quantity", "price", "avg_price", "market_value",
+    header = ["holding_id", "holding_dt", "portfolio_id", "security_id", "quantity", "price", "avg_price", "market_value", "security_price_dt", "holding_cost_amt", "unreal_gain_loss_amt", "unreal_gain_loss_perc",
               "created_ts", "last_updated_ts"]
     writer.writerow(header)
     for h in items:
@@ -129,6 +132,10 @@ def export_holdings_csv() -> Response:
             getattr(h, "price", ""),
             getattr(h, "avg_price", ""),
             getattr(h, "market_value", ""),
+            getattr(h, "security_price_dt", ""),
+            getattr(h, "holding_cost_amt", ""),
+            getattr(h, "unreal_gain_loss_amt", ""),
+            getattr(h, "unreal_gain_loss_perc", ""),
             getattr(h, "created_ts", ""),
             getattr(h, "last_updated_ts", ""),
         ])

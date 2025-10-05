@@ -158,9 +158,9 @@ def download_prices_by_date(target_date: date) -> dict:
     """
     Download daily prices for all securities (by ticker) for a given date from Yahoo Finance
     and store them in security_price_dtl. Uses a fixed price_source_id=401 (Yahoo Finance).
-    Skips securities without ticker or when price is unavailable for the date.
+    Skips securities without a ticker or when the price is unavailable for the date.
     """
-    securities = security_crud.list_all()
+    securities = security_crud.list_all_public()
     attempted = 0
     saved = 0
     skipped = 0
@@ -169,6 +169,10 @@ def download_prices_by_date(target_date: date) -> dict:
 
     # yfinance best practice: batch tickers when possible; but for simplicity and reliability here, iterate
     for s in securities:
+        # Skip private securities
+        if getattr(s, "is_private", False):
+            skipped += 1
+            continue
         ticker = (s.ticker or "").strip()
         if not ticker:
             skipped += 1
@@ -242,8 +246,8 @@ def download_prices_by_date(target_date: date) -> dict:
 
 @router.post("/download-date-range")
 def download_prices_for_date_range(start_date: date, end_date: date):
-    # get all valid dates between start_date and end_date
-    dates = [d.date() for d in pd.date_range(start_date, end_date)]
+    # get all weekday (Mon-Fri) dates between start_date and end_date
+    dates = [d.date() for d in pd.date_range(start=start_date, end=end_date, freq="B")]
     for d in dates:
         download_prices_by_date(d)
 

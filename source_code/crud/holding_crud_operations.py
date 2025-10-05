@@ -20,7 +20,11 @@ class HoldingCRUD(BaseCRUD[HoldingDtl]):
     # Uniform list_all like other modules
     def list_all(self) -> List[HoldingDtl]:
         rows = pg_db_conn_manager.fetch_data(
-            "SELECT holding_id, holding_dt, portfolio_id, security_id, quantity, price, avg_price, market_value, created_ts, last_updated_ts "
+            "SELECT holding_id, holding_dt, portfolio_id, security_id, quantity, price, "
+            "COALESCE(avg_price, 0.0) AS avg_price, market_value, security_price_dt, "
+            "COALESCE(holding_cost_amt, 0.0) AS holding_cost_amt, "
+            "COALESCE(unreal_gain_loss_amt, 0.0) AS unreal_gain_loss_amt, "
+            "COALESCE(unreal_gain_loss_perc, 0.0) AS unreal_gain_loss_perc, created_ts, last_updated_ts "
             "FROM holding_dtl ORDER BY holding_id"
         )
         return [HoldingDtl(**row) for row in rows]
@@ -42,13 +46,17 @@ class HoldingCRUD(BaseCRUD[HoldingDtl]):
             price=item.price,
             avg_price=item.avg_price,
             market_value=item.market_value,
+            security_price_dt=getattr(item, 'security_price_dt', None),
+            holding_cost_amt=getattr(item, 'holding_cost_amt', 0.0),
+            unreal_gain_loss_amt=getattr(item, 'unreal_gain_loss_amt', 0.0),
+            unreal_gain_loss_perc=getattr(item, 'unreal_gain_loss_perc', 0.0),
             created_ts=now,
             last_updated_ts=now,
         )
         sql = """
         INSERT INTO holding_dtl (
-            holding_id, holding_dt, portfolio_id, security_id, quantity, price, avg_price, market_value, created_ts, last_updated_ts
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            holding_id, holding_dt, portfolio_id, security_id, quantity, price, avg_price, market_value, security_price_dt, holding_cost_amt, unreal_gain_loss_amt, unreal_gain_loss_perc, created_ts, last_updated_ts
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (holding_id) DO UPDATE SET
             holding_dt = EXCLUDED.holding_dt,
             portfolio_id = EXCLUDED.portfolio_id,
@@ -57,11 +65,15 @@ class HoldingCRUD(BaseCRUD[HoldingDtl]):
             price = EXCLUDED.price,
             avg_price = EXCLUDED.avg_price,
             market_value = EXCLUDED.market_value,
+            security_price_dt = EXCLUDED.security_price_dt,
+            holding_cost_amt = EXCLUDED.holding_cost_amt,
+            unreal_gain_loss_amt = EXCLUDED.unreal_gain_loss_amt,
+            unreal_gain_loss_perc = EXCLUDED.unreal_gain_loss_perc,
             last_updated_ts = EXCLUDED.last_updated_ts
         """
         params = (
             h.holding_id, h.holding_dt, h.portfolio_id, h.security_id,
-            h.quantity, h.price, h.avg_price, h.market_value, h.created_ts, h.last_updated_ts
+            h.quantity, h.price, h.avg_price, h.market_value, h.security_price_dt, h.holding_cost_amt, h.unreal_gain_loss_amt, h.unreal_gain_loss_perc, h.created_ts, h.last_updated_ts
         )
         affected = pg_db_conn_manager.execute_query(sql, params)
         if affected == 0:
@@ -78,7 +90,11 @@ class HoldingCRUD(BaseCRUD[HoldingDtl]):
     # Override BaseCRUD.get to read from DB
     def get_security(self, pk: int) -> Optional[HoldingDtl]:
         rows = pg_db_conn_manager.fetch_data(
-            "SELECT holding_id, holding_dt, portfolio_id, security_id, quantity, price, avg_price, market_value, created_ts, last_updated_ts "
+            "SELECT holding_id, holding_dt, portfolio_id, security_id, quantity, price, "
+            "COALESCE(avg_price, 0.0) AS avg_price, market_value, security_price_dt, "
+            "COALESCE(holding_cost_amt, 0.0) AS holding_cost_amt, "
+            "COALESCE(unreal_gain_loss_amt, 0.0) AS unreal_gain_loss_amt, "
+            "COALESCE(unreal_gain_loss_perc, 0.0) AS unreal_gain_loss_perc, created_ts, last_updated_ts "
             "FROM holding_dtl WHERE holding_id = %s",
             (pk,),
         )
@@ -101,12 +117,18 @@ class HoldingCRUD(BaseCRUD[HoldingDtl]):
             price = %s,
             avg_price = %s,
             market_value = %s,
+            security_price_dt = %s,
+            holding_cost_amt = %s,
+            unreal_gain_loss_amt = %s,
+            unreal_gain_loss_perc = %s,
             last_updated_ts = %s
         WHERE holding_id = %s
         """
         params = (
             item.holding_dt, item.portfolio_id, item.security_id, item.quantity,
-            item.price, item.avg_price, item.market_value, date_utils.get_current_date_time(), pk
+            item.price, item.avg_price, item.market_value, getattr(item, 'security_price_dt', None),
+            getattr(item, 'holding_cost_amt', 0.0), getattr(item, 'unreal_gain_loss_amt', 0.0), getattr(item, 'unreal_gain_loss_perc', 0.0),
+            date_utils.get_current_date_time(), pk
         )
         affected = pg_db_conn_manager.execute_query(sql, params)
         if affected == 0:
@@ -143,11 +165,15 @@ class HoldingCRUD(BaseCRUD[HoldingDtl]):
         # Aggregate by moving average
         from collections import defaultdict
         agg = defaultdict(lambda: {"qty": 0.0, "avg": 0.0})
+        # Track last transaction price/date per (portfolio, security) for fallback pricing
+        last_tx = {}
         for r in rows:
             key = (r["portfolio_id"], r["security_id"])
             qty = float(r["transaction_qty"] or 0.0)
             price = float(r["transaction_price"] or 0.0)
             ttype = str(r["transaction_type"]).upper()
+            # Always update last transaction info (ordered by date then id already)
+            last_tx[key] = {"price": price, "date": r["transaction_date"]}
             cur_qty = agg[key]["qty"]
             cur_avg = agg[key]["avg"]
             if ttype in ("B", "BUY"):
@@ -170,6 +196,10 @@ class HoldingCRUD(BaseCRUD[HoldingDtl]):
                 continue
         # Remove zero or negative positions
         holdings = [(pid, sid, round(vals["qty"], 6), float(vals["avg"])) for (pid, sid), vals in agg.items() if vals["qty"] > 0]
+        
+        # Helper to fetch last transaction info for a key
+        def get_last_tx(pid: int, sid: int):
+            return last_tx.get((pid, sid))
 
         # Delete existing for date
         deleted = pg_db_conn_manager.execute_query(
@@ -181,22 +211,36 @@ class HoldingCRUD(BaseCRUD[HoldingDtl]):
         inserted = 0
         if holdings:
             for (pid, sid, qty, avg_cost) in holdings:
-                # Price on date if exists
+                # Price on or before date (latest available)
                 price_rows = pg_db_conn_manager.fetch_data(
-                    "SELECT price FROM security_price_dtl WHERE security_id = %s AND price_date = %s ORDER BY security_price_id DESC LIMIT 1",
+                    "SELECT price, price_date FROM security_price_dtl WHERE security_id = %s AND price_date <= %s ORDER BY price_date DESC, security_price_id DESC LIMIT 1",
                     (sid, target_date)
                 )
-                price = float(price_rows[0]["price"]) if price_rows else 0.0
+                if price_rows:
+                    price = float(price_rows[0]["price"])
+                    sec_price_dt = price_rows[0]["price_date"]
+                else:
+                    # Fallback: use last transaction price and its date if available
+                    tx = get_last_tx(pid, sid)
+                    if tx and (tx.get("price") or 0) > 0:
+                        price = float(tx["price"])
+                        sec_price_dt = tx.get("date")
+                    else:
+                        price = 0.0
+                        sec_price_dt = None
                 market_value = round(qty * price, 2)
+                holding_cost_amt = round(qty * (avg_cost or 0.0), 2)
+                unreal_gain_loss_amt = round(market_value - holding_cost_amt, 2)
+                unreal_gain_loss_perc = round(((unreal_gain_loss_amt / holding_cost_amt) * 100.0) if holding_cost_amt not in (0, 0.0) else 0.0, 4)
                 now = date_utils.get_current_date_time()
                 hid = date_utils.get_timestamp_with_microseconds()
                 pg_db_conn_manager.execute_query(
                     """
-                    INSERT INTO holding_dtl (holding_id, holding_dt, portfolio_id, security_id, quantity, price, avg_price, market_value, created_ts, last_updated_ts)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO holding_dtl (holding_id, holding_dt, portfolio_id, security_id, quantity, price, avg_price, market_value, security_price_dt, holding_cost_amt, unreal_gain_loss_amt, unreal_gain_loss_perc, created_ts, last_updated_ts)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (holding_id) DO NOTHING
                     """,
-                    (hid, target_date, pid, sid, qty, price, avg_cost, market_value, now, now)
+                    (hid, target_date, pid, sid, qty, price, avg_cost, market_value, sec_price_dt, holding_cost_amt, unreal_gain_loss_amt, unreal_gain_loss_perc, now, now)
                 )
                 inserted += 1
         return {"deleted": int(deleted), "inserted": int(inserted)}
