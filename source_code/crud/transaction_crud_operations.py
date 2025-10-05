@@ -195,6 +195,26 @@ class TransactionCRUD(BaseCRUD[TransactionDtl]):
         )
         return affected > 0
 
+    def recalculate_fees_all(self) -> int:
+        """
+        Recalculate transaction_fee and external_manager_fee for all transactions
+        based on their corresponding percent fields applied to the transaction amount.
+        The transaction amount is total_inv_amt if present, otherwise qty * price.
+        Returns the number of rows updated.
+        """
+        sql = (
+            "UPDATE transaction_dtl\n"
+            "SET\n"
+            "  transaction_fee = ROUND((COALESCE(total_inv_amt, transaction_qty * transaction_price) * (COALESCE(transaction_fee_percent, 0) / 100.0))::numeric, 2),\n"
+            "  external_manager_fee = ROUND((COALESCE(total_inv_amt, transaction_qty * transaction_price) * (COALESCE(external_manager_fee_percent, 0) / 100.0))::numeric, 2),\n"
+            "  last_updated_ts = %s\n"
+            ")"
+        )
+        now = date_utils.get_current_date_time()
+        # execute_query returns affected row count for UPDATE statements
+        affected = pg_db_conn_manager.execute_query(sql, (now,))
+        return affected
+
 
 # Keep a singleton instance for importers (routes)
 transaction_crud = TransactionCRUD()

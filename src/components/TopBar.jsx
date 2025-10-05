@@ -52,6 +52,11 @@ export default function TopBar() {
           <MenuLink to="/portfolios/new">Add</MenuLink>
         </Dropdown>
 
+        <Dropdown label="External Platforms">
+          <MenuLink to="/external-platforms">List</MenuLink>
+          <MenuLink to="/external-platforms/new">Add</MenuLink>
+        </Dropdown>
+
         <Dropdown label="Users">
           <MenuLink to="/users">My Profile</MenuLink>
           {/* Admin-only: List Users */}
@@ -59,11 +64,6 @@ export default function TopBar() {
             <MenuLink to="/users/all">List Users</MenuLink>
           ) : null }
           <MenuLink to="/users/change-password">Change Password</MenuLink>
-        </Dropdown>
-
-        <Dropdown label="External Platforms">
-          <MenuLink to="/external-platforms">List</MenuLink>
-          <MenuLink to="/external-platforms/new">Add</MenuLink>
         </Dropdown>
 
       </nav>

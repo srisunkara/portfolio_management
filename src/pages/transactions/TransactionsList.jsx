@@ -13,6 +13,9 @@ export default function TransactionsList() {
   const [filters, setFilters] = React.useState({});
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
+  // Sorting state
+  const [sortBy, setSortBy] = React.useState(null); // field name
+  const [sortDir, setSortDir] = React.useState("asc"); // 'asc' | 'desc'
 
   React.useEffect(() => {
     let alive = true;
@@ -90,6 +93,74 @@ export default function TransactionsList() {
     );
   }, [rows, fields, filters]);
 
+  // Sorted rows based on sortBy and sortDir
+  const sortedRows = React.useMemo(() => {
+    if (!sortBy) return filteredRows;
+    const fieldDef = fields.find((f) => f.name === sortBy);
+    const arr = [...filteredRows];
+    const dir = sortDir === "desc" ? -1 : 1;
+    const safeStr = (v) => String(v ?? "").toLowerCase();
+    arr.sort((a, b) => {
+      const va = a[sortBy];
+      const vb = b[sortBy];
+      if (fieldDef?.type === "number" || fieldDef?.type === "integer") {
+        const na = Number(va);
+        const nb = Number(vb);
+        const aa = Number.isFinite(na) ? na : Number.MIN_SAFE_INTEGER;
+        const bb = Number.isFinite(nb) ? nb : Number.MIN_SAFE_INTEGER;
+        if (aa < bb) return -1 * dir;
+        if (aa > bb) return 1 * dir;
+        return 0;
+      }
+      if (fieldDef?.type === "date") {
+        const da = va ? new Date(va).getTime() : -Infinity;
+        const db = vb ? new Date(vb).getTime() : -Infinity;
+        if (da < db) return -1 * dir;
+        if (da > db) return 1 * dir;
+        return 0;
+      }
+      if (typeof va === "boolean" || typeof vb === "boolean") {
+        const aa = va === true ? 1 : va === false ? 0 : -1;
+        const bb = vb === true ? 1 : vb === false ? 0 : -1;
+        if (aa < bb) return -1 * dir;
+        if (aa > bb) return 1 * dir;
+        return 0;
+      }
+      const sa = safeStr(va);
+      const sb = safeStr(vb);
+      if (sa < sb) return -1 * dir;
+      if (sa > sb) return 1 * dir;
+      return 0;
+    });
+    return arr;
+  }, [filteredRows, fields, sortBy, sortDir]);
+
+  const onHeaderClick = (name) => {
+    if (sortBy === name) {
+      setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(name);
+      setSortDir("asc");
+    }
+  };
+
+  // Summaries for numeric columns over the filtered (and optionally sorted) set
+  const totals = React.useMemo(() => {
+    const res = {};
+    for (const f of fields) {
+      if (f.type === "number" || f.type === "integer") {
+        let sum = 0;
+        for (const r of filteredRows) {
+          const v = r[f.name];
+          const num = typeof v === "number" ? v : Number(v);
+          if (Number.isFinite(num)) sum += num;
+        }
+        res[f.name] = sum;
+      }
+    }
+    return res;
+  }, [fields, filteredRows]);
+
   if (loading) return <div>Loading transactions...</div>;
   if (error) return <div style={{ color: "#b91c1c" }}>{error}</div>;
 
@@ -116,7 +187,26 @@ export default function TransactionsList() {
               <th style={{ textAlign: "left", padding: 12, whiteSpace: "nowrap" }}>Actions</th>
               {fields.map((f) => (
                 <th key={f.name} style={{ textAlign: "left", padding: 12, whiteSpace: "nowrap" }}>
-                  {labelize(f.name)}
+                  <button
+                    type="button"
+                    onClick={() => onHeaderClick(f.name)}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      color: "#0f172a",
+                    }}
+                    title={`Sort by ${labelize(f.name)}`}
+                  >
+                    <span>{labelize(f.name)}</span>
+                    <span style={{ opacity: 0.7 }}>
+                      {sortBy === f.name ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
+                    </span>
+                  </button>
                 </th>
               ))}
             </tr>
@@ -153,7 +243,7 @@ export default function TransactionsList() {
             </tr>
           </thead>
           <tbody>
-            {filteredRows.map((t, idx) => {
+            {sortedRows.map((t, idx) => {
               const id = t.transaction_id ?? t.id;
               return (
                 <tr key={id ?? JSON.stringify(t)} style={{ borderTop: "1px solid #e2e8f0", background: idx % 2 === 1 ? "#f8fafc" : "white" }}>
@@ -175,7 +265,7 @@ export default function TransactionsList() {
                 </tr>
               );
             })}
-            {filteredRows.length === 0 && (
+            {sortedRows.length === 0 && (
               <tr>
                 <td colSpan={fields.length + 1} style={{ padding: 16, textAlign: "center", color: "#64748b" }}>
                   No transactions found.
@@ -183,6 +273,16 @@ export default function TransactionsList() {
               </tr>
             )}
           </tbody>
+          <tfoot>
+            <tr style={{ borderTop: "2px solid #e2e8f0", background: "#f8fafc" }}>
+              <td style={{ padding: 12, whiteSpace: "nowrap", fontWeight: 700 }}>Totals ({filteredRows.length})</td>
+              {fields.map((f) => (
+                <td key={`total-${f.name}`} style={{ padding: 12, whiteSpace: "nowrap", fontWeight: 700 }}>
+                  {f.type === "number" || f.type === "integer" ? renderCell(totals[f.name] ?? 0, f) : ""}
+                </td>
+              ))}
+            </tr>
+          </tfoot>
         </table>
       </div>
     </div>
