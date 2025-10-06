@@ -5,7 +5,11 @@ import { trackEvent } from "../../utils/telemetry.js";
 
 export default function HoldingsRecalculate() {
   const [date, setDate] = React.useState(() => {
+    // Default to last weekday (Fri if weekend)
     const d = new Date();
+    const day = d.getDay(); // 0=Sun, 6=Sat
+    const delta = day === 0 ? 2 : day === 6 ? 1 : 0;
+    d.setDate(d.getDate() - delta);
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const dd = String(d.getDate()).padStart(2, "0");

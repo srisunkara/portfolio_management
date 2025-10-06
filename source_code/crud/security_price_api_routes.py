@@ -17,7 +17,9 @@ import yfinance as yf
 router = APIRouter(prefix="/security-prices", tags=["Security Prices"])
 
 @router.get("/", response_model=list[SecurityPriceDtl])
-def list_security_prices():
+def list_security_prices(date: date | None = None):
+    if date is not None:
+        return security_price_crud.list_by_date(date)
     return security_price_crud.list_all()
 
 @router.get("/{security_price_id}", response_model=SecurityPriceDtl)

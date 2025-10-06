@@ -13,11 +13,23 @@ export default function SecurityPricesList() {
   const [platformsById, setPlatformsById] = React.useState({});
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
+  const [pricingDate, setPricingDate] = React.useState(() => {
+    // Default to last weekday (Fri if weekend)
+    const d = new Date();
+    const day = d.getDay(); // 0=Sun,6=Sat
+    const delta = day === 0 ? 2 : day === 6 ? 1 : 0;
+    d.setDate(d.getDate() - delta);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  });
 
   React.useEffect(() => {
     let alive = true;
     (async () => {
       try {
+        setLoading(true);
         // Base fields from model
         const base = getOrderedFields("SecurityPriceDtl");
         // Insert derived columns: after `price_date` add security info; after `price_source_id` add a friendly price_source column
@@ -40,9 +52,9 @@ export default function SecurityPricesList() {
         }
         if (alive) setFields(augmented);
 
-        // Data
+        // Data, scoped by pricingDate
         const [prices, securities, platforms] = await Promise.all([
-          api.listSecurityPrices(),
+          api.listSecurityPrices(pricingDate),
           api.listSecurities(),
           api.listExternalPlatforms(),
         ]);
@@ -58,6 +70,8 @@ export default function SecurityPricesList() {
           setSecuritiesById(secMap);
           setPlatformsById(platMap);
           setRows(prices || []);
+          // Also default the inline filter to the pricingDate
+          setFilters((prev) => ({ ...prev, price_date: pricingDate }));
         }
       } catch (e) {
         if (alive) setError("Failed to load security prices.");
@@ -66,7 +80,7 @@ export default function SecurityPricesList() {
       }
     })();
     return () => (alive = false);
-  }, []);
+  }, [pricingDate]);
 
   const onFilterChange = (name, value) => setFilters((prev) => ({ ...prev, [name]: value }));
   const clearFilters = () => setFilters({});
@@ -144,8 +158,17 @@ export default function SecurityPricesList() {
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <h1 style={{ marginTop: 0, marginBottom: 0, flex: 1 }}>Security Prices</h1>
+        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span>Pricing Date</span>
+          <input
+            type="date"
+            value={pricingDate}
+            onChange={(e) => setPricingDate(e.target.value)}
+            style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
+          />
+        </label>
         <button
           type="button"
           onClick={clearFilters}

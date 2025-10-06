@@ -32,9 +32,11 @@ export default function Holdings() {
           setPortfolioMap(pmap);
           setSecurityMap(smap);
           setData(res);
-          // Default date filter to yesterday
+          // Default date filter to last weekday (Fri if weekend)
           const d = new Date();
-          d.setDate(d.getDate() - 1);
+          const day = d.getDay(); // 0=Sun,6=Sat
+          const delta = day === 0 ? 2 : day === 6 ? 1 : 0;
+          d.setDate(d.getDate() - delta);
           const yyyy = d.getFullYear();
           const mm = String(d.getMonth() + 1).padStart(2, "0");
           const dd = String(d.getDate()).padStart(2, "0");
@@ -159,9 +161,6 @@ export default function Holdings() {
               <th style={{ textAlign: "left", padding: 12, position: "sticky", top: 0, background: "#f1f5f9" }}>Unreal GL Amt</th>
               <th style={{ textAlign: "left", padding: 12, position: "sticky", top: 0, background: "#f1f5f9" }}>Unreal GL %</th>
               <th style={{ textAlign: "left", padding: 12, position: "sticky", top: 0, background: "#f1f5f9" }}>Security Price Dt</th>
-              <th style={{ textAlign: "left", padding: 12, position: "sticky", top: 0, background: "#f1f5f9" }}>Holding Id</th>
-              <th style={{ textAlign: "left", padding: 12, position: "sticky", top: 0, background: "#f1f5f9" }}>Portfolio Id</th>
-              <th style={{ textAlign: "left", padding: 12, position: "sticky", top: 0, background: "#f1f5f9" }}>Security Id</th>
             </tr>
             <tr>
               <th style={{ textAlign: "left", padding: 8, position: "sticky", top: 44, background: "#f1f5f9" }}>
@@ -197,15 +196,6 @@ export default function Holdings() {
               <th style={{ textAlign: "left", padding: 8, position: "sticky", top: 44, background: "#f1f5f9" }}>
                 <input type="date" value={filters.security_price_dt ?? ""} onChange={(e)=>onFilterChange("security_price_dt", e.target.value)} style={{ width: "100%", maxWidth: 140, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }} />
               </th>
-              <th style={{ textAlign: "left", padding: 8, position: "sticky", top: 44, background: "#f1f5f9" }}>
-                <input type="text" value={filters.holding_id ?? ""} onChange={(e)=>onFilterChange("holding_id", e.target.value)} style={{ width: "100%", maxWidth: 140, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }} />
-              </th>
-              <th style={{ textAlign: "left", padding: 8, position: "sticky", top: 44, background: "#f1f5f9" }}>
-                <input type="text" value={filters.portfolio_id ?? ""} onChange={(e)=>onFilterChange("portfolio_id", e.target.value)} style={{ width: "100%", maxWidth: 120, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }} />
-              </th>
-              <th style={{ textAlign: "left", padding: 8, position: "sticky", top: 44, background: "#f1f5f9" }}>
-                <input type="text" value={filters.security_id ?? ""} onChange={(e)=>onFilterChange("security_id", e.target.value)} style={{ width: "100%", maxWidth: 120, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }} />
-              </th>
             </tr>
           </thead>
           <tbody>
@@ -223,10 +213,6 @@ export default function Holdings() {
                 <td style={{ padding: 12 }}>{fmt(h.unreal_gain_loss_amt)}</td>
                 <td style={{ padding: 12 }}>{fmt(h.unreal_gain_loss_perc)}</td>
                 <td style={{ padding: 12 }}>{h.security_price_dt || "-"}</td>
-                {/* Identifier columns at the end */}
-                <td style={{ padding: 12 }}>{h.holding_id}</td>
-                <td style={{ padding: 12 }}>{h.portfolio_id}</td>
-                <td style={{ padding: 12 }}>{h.security_id}</td>
               </tr>
             ))}
             {filtered.length === 0 && (

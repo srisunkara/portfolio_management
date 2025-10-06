@@ -53,9 +53,6 @@ export const modelFieldDefs = {
     { name: "unreal_gain_loss_perc", type: "number" },
     { name: "created_ts", type: "string", format: "date-time", readOnly: true },
     { name: "last_updated_ts", type: "string", format: "date-time", readOnly: true },
-    { name: "holding_id", type: "integer", readOnly: true },
-    { name: "portfolio_id", type: "integer" },
-    { name: "security_id", type: "integer" },
   ],
   SecurityPriceDtl: [
     { name: "price_date", type: "date" },

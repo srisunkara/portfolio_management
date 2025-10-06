@@ -20,10 +20,54 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
         )
         return [SecurityPriceDtl(**row) for row in rows]
 
-    # Save single price (generate ID and timestamps)
+    def list_by_date(self, target_date) -> List[SecurityPriceDtl]:
+        rows = pg_db_conn_manager.fetch_data(
+            "SELECT security_price_id, price_dtl.security_id, price_source_id, price_date,  "
+            "price, market_cap, addl_notes, price_currency, price_dtl.created_ts, price_dtl.last_updated_ts "
+            "FROM security_price_dtl price_dtl "
+            "inner join security_dtl on price_dtl.security_id = security_dtl.security_id "
+            "WHERE price_date = %s "
+            "ORDER BY ticker, name, security_id",
+            (target_date,)
+        )
+        return [SecurityPriceDtl(**row) for row in rows]
+
+    # Save single price (generate ID and timestamps) with natural-key upsert
+    # Natural key: (security_id, price_source_id, price_date)
+    # If a row already exists for this combination, update it instead of inserting a duplicate.
     def save(self, item: SecurityPriceDtlInput) -> SecurityPriceDtl:
-        next_price_id = date_utils.get_timestamp_with_microseconds()
+        # Check if a price already exists for the same security/source/date
+        existing_rows = pg_db_conn_manager.fetch_data(
+            "SELECT security_price_id FROM security_price_dtl WHERE security_id = %s AND price_source_id = %s AND price_date = %s LIMIT 1",
+            (item.security_id, item.price_source_id, item.price_date),
+        )
         now = date_utils.get_current_date_time()
+        if existing_rows:
+            # Update existing row
+            existing_id = existing_rows[0]["security_price_id"]
+            update_sql = (
+                "UPDATE security_price_dtl\n"
+                "SET price = %s,\n"
+                "    market_cap = %s,\n"
+                "    addl_notes = %s,\n"
+                "    price_currency = %s,\n"
+                "    last_updated_ts = %s\n"
+                "WHERE security_price_id = %s"
+            )
+            params = (
+                item.price,
+                item.market_cap,
+                item.addl_notes,
+                item.price_currency,
+                now,
+                existing_id,
+            )
+            affected = pg_db_conn_manager.execute_query(update_sql, params)
+            if affected == 0:
+                raise RuntimeError("Failed to update security price")
+            return self.get_security(existing_id)
+        # Else insert new row
+        next_price_id = date_utils.get_timestamp_with_microseconds()
         price = SecurityPriceDtl(
             security_price_id=next_price_id,
             security_id=item.security_id,
@@ -36,7 +80,7 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
             created_ts=now,
             last_updated_ts=now,
         )
-        sql = """
+        insert_sql = """
         INSERT INTO security_price_dtl (
             security_price_id, security_id, price_source_id, price_date, price, market_cap, addl_notes, price_currency, created_ts, last_updated_ts
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -62,7 +106,7 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
             price.created_ts,
             price.last_updated_ts,
         )
-        affected = pg_db_conn_manager.execute_query(sql, params)
+        affected = pg_db_conn_manager.execute_query(insert_sql, params)
         if affected == 0:
             raise RuntimeError("Failed to save security price")
         return price

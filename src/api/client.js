@@ -69,7 +69,7 @@ export const api = {
   recalcHoldings: (date) => request(`/holdings/recalculate`, { method: "POST", body: JSON.stringify({ date }) }),
 
   // Security Prices
-  listSecurityPrices: () => request("/security-prices", { method: "GET" }),
+  listSecurityPrices: (date) => request(`/security-prices${date ? `?date=${encodeURIComponent(date)}` : ""}`, { method: "GET" }),
   getSecurityPrice: (id) => request(`/security-prices/${id}`, { method: "GET" }),
   createSecurityPrice: (payload) => request("/security-prices/", { method: "POST", body: JSON.stringify(payload) }),
   updateSecurityPrice: (id, payload) => request(`/security-prices/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
