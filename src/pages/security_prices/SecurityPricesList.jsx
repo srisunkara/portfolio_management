@@ -10,6 +10,7 @@ export default function SecurityPricesList() {
   const [fields, setFields] = React.useState([]);
   const [filters, setFilters] = React.useState({});
   const [securitiesById, setSecuritiesById] = React.useState({});
+  const [platformsById, setPlatformsById] = React.useState({});
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
 
@@ -19,31 +20,43 @@ export default function SecurityPricesList() {
       try {
         // Base fields from model
         const base = getOrderedFields("SecurityPriceDtl");
-        // Insert derived columns after `security_id`
-        const idx = base.findIndex((f) => f.name === "security_id");
+        // Insert derived columns: after `price_date` add security info; after `price_source_id` add a friendly price_source column
+        const idxDate = base.findIndex((f) => f.name === "price_date");
+        const idxSource = base.findIndex((f) => f.name === "market_cap");
         const augmented = [...base];
-        const derived = [
+        const derivedAfterDate = [
           { name: "security_ticker", type: "string" },
           { name: "security_name", type: "string" },
         ];
-        if (idx >= 0) {
-          augmented.splice(idx + 1, 0, ...derived);
+        if (idxDate >= 0) {
+          augmented.splice(idxDate + 1, 0, ...derivedAfterDate);
         } else {
-          augmented.push(...derived);
+          augmented.push(...derivedAfterDate);
+        }
+        if (idxSource >= 0) {
+          augmented.splice(idxSource + 1, 0, { name: "price_source", type: "string" });
+        } else {
+          augmented.push({ name: "price_source", type: "string" });
         }
         if (alive) setFields(augmented);
 
         // Data
-        const [prices, securities] = await Promise.all([
+        const [prices, securities, platforms] = await Promise.all([
           api.listSecurityPrices(),
           api.listSecurities(),
+          api.listExternalPlatforms(),
         ]);
-        const map = {};
+        const secMap = {};
         for (const s of securities || []) {
-          map[s.security_id] = { ticker: s.ticker, name: s.name };
+          secMap[s.security_id] = { ticker: s.ticker, name: s.name };
+        }
+        const platMap = {};
+        for (const p of platforms || []) {
+          platMap[p.external_platform_id] = p.name;
         }
         if (alive) {
-          setSecuritiesById(map);
+          setSecuritiesById(secMap);
+          setPlatformsById(platMap);
           setRows(prices || []);
         }
       } catch (e) {
@@ -82,13 +95,15 @@ export default function SecurityPricesList() {
     if (!rows.length) return rows;
     return rows.map((r) => {
       const sec = securitiesById[r.security_id] || {};
+      const sourceName = platformsById[r.price_source_id];
       return {
         ...r,
         security_ticker: sec.ticker ?? "-",
         security_name: sec.name ?? "-",
+        price_source: sourceName ? String(sourceName) : String(r.price_source_id ?? "-"),
       };
     });
-  }, [rows, securitiesById]);
+  }, [rows, securitiesById, platformsById]);
 
   const filteredRows = React.useMemo(() => {
     if (!filters || Object.values(filters).every((v) => !v)) return rowsWithDerived;

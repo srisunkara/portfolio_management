@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client.js";
 import { getOrderedFields, renderCell, labelize } from "../../models/fields.js";
+import { trackEvent } from "../../utils/telemetry.js";
 import editImg from "../../images/edit.png";
 import deleteImg from "../../images/delete.png";
 
@@ -14,6 +15,7 @@ export default function SecuritiesList() {
 
   React.useEffect(() => {
     let alive = true;
+    trackEvent("page_view", { page: "securities_list" });
     (async () => {
       try {
         // Use SecurityDtl’s ordered fields

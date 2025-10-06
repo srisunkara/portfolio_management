@@ -12,8 +12,11 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
 
     def list_all(self) -> List[SecurityPriceDtl]:
         rows = pg_db_conn_manager.fetch_data(
-            "SELECT security_price_id, security_id, price_source_id, price_date, price, market_cap, addl_notes, price_currency, created_ts, last_updated_ts "
-            "FROM security_price_dtl ORDER BY security_price_id"
+            "SELECT security_price_id, price_dtl.security_id, price_source_id, price_date,  "
+            "price, market_cap, addl_notes, price_currency, price_dtl.created_ts, price_dtl.last_updated_ts "
+            "FROM security_price_dtl price_dtl "
+            "inner join security_dtl on price_dtl.security_id = security_dtl.security_id "
+            "ORDER BY ticker, name, security_id"
         )
         return [SecurityPriceDtl(**row) for row in rows]
 

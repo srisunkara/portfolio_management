@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../../api/client.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { getOrderedFields, renderCell, labelize, modelFieldDefs } from "../../models/fields.js";
+import { trackEvent } from "../../utils/telemetry.js";
 import editImg from "../../images/edit.png";
 import deleteImg from "../../images/delete.png";
 
@@ -22,6 +23,7 @@ export default function TransactionsList() {
 
   React.useEffect(() => {
     let alive = true;
+    trackEvent("page_view", { page: "transactions_list" });
     (async () => {
       try {
         const f = getOrderedFields("TransactionFullView");
@@ -53,13 +55,16 @@ export default function TransactionsList() {
   const recalcAllFees = async () => {
     setRecalcMessage("");
     setRecalcLoading(true);
+    trackEvent("recalculate_fees_click", { page: "transactions_list" });
     try {
       const res = await api.recalculateTransactionFees();
       const updated = (res && typeof res.updated === "number") ? res.updated : 0;
       setRecalcMessage(`Recalculated fees for ${updated} transactions.`);
+      trackEvent("recalculate_fees_success", { updated });
       await reloadTransactions();
     } catch (e) {
       setRecalcMessage(e?.message || "Failed to recalculate fees.");
+      trackEvent("recalculate_fees_error", { message: e?.message || String(e) });
     } finally {
       setRecalcLoading(false);
     }
@@ -166,10 +171,15 @@ export default function TransactionsList() {
 
   const onHeaderClick = (name) => {
     if (sortBy === name) {
-      setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+      setSortDir((prev) => {
+        const next = prev === "asc" ? "desc" : "asc";
+        trackEvent("sort_toggle", { page: "transactions_list", field: name, dir: next });
+        return next;
+      });
     } else {
       setSortBy(name);
       setSortDir("asc");
+      trackEvent("sort_toggle", { page: "transactions_list", field: name, dir: "asc" });
     }
   };
 
@@ -225,11 +235,11 @@ export default function TransactionsList() {
 
       <div style={{ background: "white", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflowX: "auto", overflowY: "auto", marginTop: 12, maxHeight: "calc(100vh - 160px)" }}>
         <table style={{ width: "max-content", minWidth: "100%", borderCollapse: "collapse" }}>
-          <thead style={{ background: "#f1f5f9" }}>
+          <thead style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 5 }}>
             <tr>
-              <th style={{ textAlign: "left", padding: 12, whiteSpace: "nowrap" }}>Actions</th>
+              <th style={{ textAlign: "left", padding: 12, whiteSpace: "nowrap", position: "sticky", top: 0, background: "#f1f5f9" }}>Actions</th>
               {fields.map((f) => (
-                <th key={f.name} style={{ textAlign: "left", padding: 12, whiteSpace: "nowrap" }}>
+                <th key={f.name} style={{ textAlign: "left", padding: 12, whiteSpace: "nowrap", position: "sticky", top: 0, background: "#f1f5f9" }}>
                   <button
                     type="button"
                     onClick={() => onHeaderClick(f.name)}
@@ -254,9 +264,9 @@ export default function TransactionsList() {
               ))}
             </tr>
             <tr>
-              <th style={{ padding: 8 }} />
+              <th style={{ padding: 8, position: "sticky", top: 44, background: "#f1f5f9" }} />
               {fields.map((f) => (
-                <th key={`${f.name}-filter`} style={{ textAlign: "left", padding: 8, whiteSpace: "nowrap" }}>
+                <th key={`${f.name}-filter`} style={{ textAlign: "left", padding: 8, whiteSpace: "nowrap", position: "sticky", top: 44, background: "#f1f5f9" }}>
                   {f.type === "date" ? (
                     <input
                       type="date"

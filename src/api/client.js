@@ -33,6 +33,7 @@ export const api = {
   listSecurities: () => request("/securities", { method: "GET" }),
   getSecurity: (id) => request(`/securities/${id}`, { method: "GET" }),
   createSecurity: (payload) => request("/securities/", { method: "POST", body: JSON.stringify(payload) }),
+  createSecuritiesBulkUnique: (payloadList) => request("/securities/bulk-unique", { method: "POST", body: JSON.stringify(payloadList) }),
   updateSecurity: (id, payload) => request(`/securities/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteSecurity: (id) => request(`/securities/${id}`, { method: "DELETE" }),
 

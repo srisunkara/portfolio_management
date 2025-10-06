@@ -1,5 +1,6 @@
 import React from "react";
 import { api } from "../../api/client.js";
+import { trackEvent } from "../../utils/telemetry.js";
 
 export default function PortfolioAdminDownloadPrices() {
   const [date, setDate] = React.useState(() => new Date().toISOString().slice(0, 10));
@@ -7,16 +8,23 @@ export default function PortfolioAdminDownloadPrices() {
   const [result, setResult] = React.useState(null);
   const [error, setError] = React.useState("");
 
+  React.useEffect(() => {
+    trackEvent("page_view", { page: "download_prices" });
+  }, []);
+
   const onSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setResult(null);
     setLoading(true);
+    trackEvent("download_prices_click", { date });
     try {
       const res = await api.downloadPrices(date);
       setResult(res);
+      trackEvent("download_prices_success", { date, saved: res?.saved, attempted: res?.attempted, skipped: res?.skipped });
     } catch (e) {
       setError(e?.message || "Failed to download prices");
+      trackEvent("download_prices_error", { message: e?.message || String(e) });
     } finally {
       setLoading(false);
     }

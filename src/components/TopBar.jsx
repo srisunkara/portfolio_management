@@ -2,13 +2,14 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import logo from "../images/portfolio_plus_logo.png";
 
 export default function TopBar() {
   const { user, logout } = useAuth();
 
   // Keep menu font size consistent across Dashboard, dropdown triggers, and submenu items
   const MENU_FONT_SIZE = 16;
-  const menuStyle = { display: "flex", gap: 8, marginLeft: 16 };
+  const menuStyle = { display: "flex", gap: 8, marginLeft: 16, flexWrap: "wrap" };
   const linkStyle = ({ isActive }) => ({
     color: isActive ? "#ffffff" : "#d1d5db",
     textDecoration: "none",
@@ -20,8 +21,11 @@ export default function TopBar() {
   });
 
   return (
-    <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 56, background: "#0f172a", color: "white", display: "flex", alignItems: "center", padding: "0 12px", boxShadow: "0 2px 8px rgba(0,0,0,0.15)", zIndex: 1000 }}>
-      <div style={{ fontWeight: 700, marginRight: 8 }}>Portfolio Management</div>
+    <div style={{ position: "fixed", top: 0, left: 0, right: 0, minHeight: 56, background: "#0f172a", color: "white", display: "flex", alignItems: "center", padding: "0 12px", boxShadow: "0 2px 8px rgba(0,0,0,0.15)", zIndex: 1000, gap: 8, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+        <img src={logo} alt="Portfolio Plus" style={{ width: 28, height: 28, objectFit: "contain" }} />
+        <div style={{ fontWeight: 700, marginRight: 8, whiteSpace: "nowrap" }}>Portfolio Management</div>
+      </div>
 
       {/* Primary menu */}
       <nav style={menuStyle}>
@@ -40,6 +44,7 @@ export default function TopBar() {
         <Dropdown label="Securities">
           <MenuLink to="/securities">List</MenuLink>
           <MenuLink to="/securities/new">Add</MenuLink>
+          <MenuLink to="/securities/new-bulk">Add Multiple</MenuLink>
         </Dropdown>
 
         <Dropdown label="Security Prices">
@@ -73,8 +78,8 @@ export default function TopBar() {
 
       </nav>
 
-      <div style={{ marginLeft: "auto", display: "flex", gap: 12, alignItems: "center" }}>
-        <div style={{ opacity: 0.9, fontSize: 14 }}>
+      <div style={{ marginLeft: "auto", display: "flex", gap: 12, alignItems: "center", minWidth: 0 }}>
+        <div style={{ opacity: 0.9, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "40vw" }}>
           {(() => {
             if (!user) return "";
             const first = user.first_name || user.firstName || "";

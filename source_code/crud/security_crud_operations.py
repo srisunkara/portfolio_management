@@ -64,7 +64,15 @@ class SecurityCRUD(BaseCRUD[SecurityDtl]):
     # Bulk save multiple SecurityDtlInput items
     def save_many(self, items: List[SecurityDtlInput]) -> List[SecurityDtl]:
         results: List[SecurityDtl] = []
+        # get current securities from DB and check for existing tickers. If found, log and skip that from saving.
+        rows = pg_db_conn_manager.fetch_data(
+            "SELECT ticker FROM security_dtl"
+        )
+        existing_tickers = {row['ticker'].lower() for row in rows}
+
         for item in items:
+            if item.ticker.lower() in existing_tickers:
+                print(f"Skipping {item.ticker} as it already exists.")
             results.append(self.save(item))
         return results
 

@@ -17,6 +17,7 @@ import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import SecuritiesList from "./pages/securities/SecuritiesList.jsx";
 import SecurityForm from "./pages/securities/SecurityForm.jsx";
+import SecurityFormBulk from "./pages/securities/SecurityFormBulk.jsx";
 import SecurityDelete from "./pages/securities/SecurityDelete.jsx";
 import UsersList from "./pages/users/UsersList.jsx";
 import MyProfile from "./pages/users/MyProfile.jsx";
@@ -64,6 +65,7 @@ export default function App() {
           {/* Securities */}
           <Route path="/securities" element={<ProtectedRoute><SecuritiesList /></ProtectedRoute>} />
           <Route path="/securities/new" element={<ProtectedRoute><SecurityForm mode="create" /></ProtectedRoute>} />
+          <Route path="/securities/new-bulk" element={<ProtectedRoute><SecurityFormBulk /></ProtectedRoute>} />
           <Route path="/securities/:id/edit" element={<ProtectedRoute><SecurityForm mode="edit" /></ProtectedRoute>} />
           <Route path="/securities/:id/delete" element={<ProtectedRoute><SecurityDelete /></ProtectedRoute>} />
 

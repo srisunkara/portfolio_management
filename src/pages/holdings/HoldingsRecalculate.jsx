@@ -1,6 +1,7 @@
 import React from "react";
 import { api } from "../../api/client.js";
 import { Link } from "react-router-dom";
+import { trackEvent } from "../../utils/telemetry.js";
 
 export default function HoldingsRecalculate() {
   const [date, setDate] = React.useState(() => {
@@ -14,17 +15,24 @@ export default function HoldingsRecalculate() {
   const [message, setMessage] = React.useState("");
   const [error, setError] = React.useState("");
 
+  React.useEffect(() => {
+    trackEvent("page_view", { page: "holdings_recalculate" });
+  }, []);
+
   const onRecalc = async () => {
     setMessage("");
     setError("");
     setLoading(true);
+    trackEvent("recalc_holdings_click", { date });
     try {
       const res = await api.recalcHoldings(date);
       const del = res?.deleted ?? 0;
       const ins = res?.inserted ?? 0;
       setMessage(`Recalculated holdings for ${res?.date || date}. Deleted ${del}, Inserted ${ins}.`);
+      trackEvent("recalc_holdings_success", { date: res?.date || date, deleted: del, inserted: ins });
     } catch (e) {
       setError(e?.message || "Failed to recalculate holdings.");
+      trackEvent("recalc_holdings_error", { message: e?.message || String(e) });
     } finally {
       setLoading(false);
     }

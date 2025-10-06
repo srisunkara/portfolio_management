@@ -4,7 +4,6 @@
 // Types: "integer" | "number" | "string" | "boolean" | "date" | "date-time"
 export const modelFieldDefs = {
   SecurityDtl: [
-    { name: "security_id", type: "integer", readOnly: true },
     { name: "ticker", type: "string" },
     { name: "name", type: "string" },
     { name: "company_name", type: "string" },
@@ -12,6 +11,7 @@ export const modelFieldDefs = {
     { name: "is_private", type: "boolean" },
     { name: "created_ts", type: "string", format: "date-time", readOnly: true },
     { name: "last_updated_ts", type: "string", format: "date-time", readOnly: true },
+    { name: "security_id", type: "integer", readOnly: true },
   ],
   // ... existing code ...
   // Portfolio model (used by UI pages similar to Securities)
@@ -58,15 +58,11 @@ export const modelFieldDefs = {
     { name: "security_id", type: "integer" },
   ],
   SecurityPriceDtl: [
-    { name: "security_price_id", type: "integer", readOnly: true },
-    { name: "security_id", type: "integer" },
-    { name: "price_source_id", type: "integer" },
     { name: "price_date", type: "date" },
     { name: "price", type: "number" },
     { name: "market_cap", type: "number" },
     { name: "addl_notes", type: "string" },
     { name: "price_currency", type: "string" },
-    { name: "created_ts", type: "string", format: "date-time", readOnly: true },
     { name: "last_updated_ts", type: "string", format: "date-time", readOnly: true },
   ],
   TransactionDtl: [

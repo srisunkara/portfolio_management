@@ -1,6 +1,7 @@
 import React from "react";
 import { api } from "../../api/client.js";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { trackEvent } from "../../utils/telemetry.js";
 
 export default function Holdings() {
   const [data, setData] = React.useState([]);
@@ -14,6 +15,7 @@ export default function Holdings() {
 
   React.useEffect(() => {
     let isMounted = true;
+    trackEvent("page_view", { page: "holdings_list" });
     (async () => {
       try {
         const [res, portfolios, securities] = await Promise.all([
@@ -144,64 +146,64 @@ export default function Holdings() {
       </div>
       <div style={{ background: "white", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflow: "auto", maxHeight: "calc(100vh - 160px)", marginTop: 12 }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1100 }}>
-          <thead style={{ background: "#f1f5f9" }}>
+          <thead style={{ background: "#f1f5f9", position: "sticky", top: 0, zIndex: 5 }}>
             <tr>
-              <th style={{ textAlign: "left", padding: 12 }}>Holding Dt</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Portfolio Name</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Security Name</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Quantity</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Price</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Avg Price</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Holding Cost Amt</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Market Value</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Unreal GL Amt</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Unreal GL %</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Security Price Dt</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Holding Id</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Portfolio Id</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Security Id</th>
+              <th style={{ textAlign: "left", padding: 12, position: "sticky", top: 0, background: "#f1f5f9" }}>Holding Dt</th>
+              <th style={{ textAlign: "left", padding: 12, position: "sticky", top: 0, background: "#f1f5f9" }}>Portfolio Name</th>
+              <th style={{ textAlign: "left", padding: 12, position: "sticky", top: 0, background: "#f1f5f9" }}>Security Name</th>
+              <th style={{ textAlign: "left", padding: 12, position: "sticky", top: 0, background: "#f1f5f9" }}>Quantity</th>
+              <th style={{ textAlign: "left", padding: 12, position: "sticky", top: 0, background: "#f1f5f9" }}>Price</th>
+              <th style={{ textAlign: "left", padding: 12, position: "sticky", top: 0, background: "#f1f5f9" }}>Avg Price</th>
+              <th style={{ textAlign: "left", padding: 12, position: "sticky", top: 0, background: "#f1f5f9" }}>Holding Cost Amt</th>
+              <th style={{ textAlign: "left", padding: 12, position: "sticky", top: 0, background: "#f1f5f9" }}>Market Value</th>
+              <th style={{ textAlign: "left", padding: 12, position: "sticky", top: 0, background: "#f1f5f9" }}>Unreal GL Amt</th>
+              <th style={{ textAlign: "left", padding: 12, position: "sticky", top: 0, background: "#f1f5f9" }}>Unreal GL %</th>
+              <th style={{ textAlign: "left", padding: 12, position: "sticky", top: 0, background: "#f1f5f9" }}>Security Price Dt</th>
+              <th style={{ textAlign: "left", padding: 12, position: "sticky", top: 0, background: "#f1f5f9" }}>Holding Id</th>
+              <th style={{ textAlign: "left", padding: 12, position: "sticky", top: 0, background: "#f1f5f9" }}>Portfolio Id</th>
+              <th style={{ textAlign: "left", padding: 12, position: "sticky", top: 0, background: "#f1f5f9" }}>Security Id</th>
             </tr>
             <tr>
-              <th style={{ textAlign: "left", padding: 8 }}>
+              <th style={{ textAlign: "left", padding: 8, position: "sticky", top: 44, background: "#f1f5f9" }}>
                 <input type="date" value={filters.holding_dt ?? ""} onChange={(e)=>onFilterChange("holding_dt", e.target.value)} style={{ width: "100%", maxWidth: 140, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }} />
               </th>
-              <th style={{ textAlign: "left", padding: 8 }}>
+              <th style={{ textAlign: "left", padding: 8, position: "sticky", top: 44, background: "#f1f5f9" }}>
                 <input type="text" placeholder="Filter name" value={filters.portfolio_name ?? ""} onChange={(e)=>onFilterChange("portfolio_name", e.target.value)} style={{ width: "100%", maxWidth: 180, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }} />
               </th>
-              <th style={{ textAlign: "left", padding: 8 }}>
+              <th style={{ textAlign: "left", padding: 8, position: "sticky", top: 44, background: "#f1f5f9" }}>
                 <input type="text" placeholder="Filter name" value={filters.security_name ?? ""} onChange={(e)=>onFilterChange("security_name", e.target.value)} style={{ width: "100%", maxWidth: 200, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }} />
               </th>
-              <th style={{ textAlign: "left", padding: 8 }}>
+              <th style={{ textAlign: "left", padding: 8, position: "sticky", top: 44, background: "#f1f5f9" }}>
                 <input type="text" placeholder="e.g. >0" value={filters.quantity ?? ""} onChange={(e)=>onFilterChange("quantity", e.target.value)} style={{ width: "100%", maxWidth: 120, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }} />
               </th>
-              <th style={{ textAlign: "left", padding: 8 }}>
+              <th style={{ textAlign: "left", padding: 8, position: "sticky", top: 44, background: "#f1f5f9" }}>
                 <input type="text" placeholder="e.g. >=1" value={filters.price ?? ""} onChange={(e)=>onFilterChange("price", e.target.value)} style={{ width: "100%", maxWidth: 120, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }} />
               </th>
-              <th style={{ textAlign: "left", padding: 8 }}>
+              <th style={{ textAlign: "left", padding: 8, position: "sticky", top: 44, background: "#f1f5f9" }}>
                 <input type="text" placeholder="e.g. >=1" value={filters.avg_price ?? ""} onChange={(e)=>onFilterChange("avg_price", e.target.value)} style={{ width: "100%", maxWidth: 120, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }} />
               </th>
-              <th style={{ textAlign: "left", padding: 8 }}>
+              <th style={{ textAlign: "left", padding: 8, position: "sticky", top: 44, background: "#f1f5f9" }}>
                 <input type="text" placeholder="e.g. >1000" value={filters.holding_cost_amt ?? ""} onChange={(e)=>onFilterChange("holding_cost_amt", e.target.value)} style={{ width: "100%", maxWidth: 140, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }} />
               </th>
-              <th style={{ textAlign: "left", padding: 8 }}>
+              <th style={{ textAlign: "left", padding: 8, position: "sticky", top: 44, background: "#f1f5f9" }}>
                 <input type="text" placeholder="e.g. >1000" value={filters.market_value ?? ""} onChange={(e)=>onFilterChange("market_value", e.target.value)} style={{ width: "100%", maxWidth: 140, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }} />
               </th>
-              <th style={{ textAlign: "left", padding: 8 }}>
+              <th style={{ textAlign: "left", padding: 8, position: "sticky", top: 44, background: "#f1f5f9" }}>
                 <input type="text" placeholder="e.g. >0" value={filters.unreal_gain_loss_amt ?? ""} onChange={(e)=>onFilterChange("unreal_gain_loss_amt", e.target.value)} style={{ width: "100%", maxWidth: 140, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }} />
               </th>
-              <th style={{ textAlign: "left", padding: 8 }}>
+              <th style={{ textAlign: "left", padding: 8, position: "sticky", top: 44, background: "#f1f5f9" }}>
                 <input type="text" placeholder="e.g. >0" value={filters.unreal_gain_loss_perc ?? ""} onChange={(e)=>onFilterChange("unreal_gain_loss_perc", e.target.value)} style={{ width: "100%", maxWidth: 120, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }} />
               </th>
-              <th style={{ textAlign: "left", padding: 8 }}>
+              <th style={{ textAlign: "left", padding: 8, position: "sticky", top: 44, background: "#f1f5f9" }}>
                 <input type="date" value={filters.security_price_dt ?? ""} onChange={(e)=>onFilterChange("security_price_dt", e.target.value)} style={{ width: "100%", maxWidth: 140, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }} />
               </th>
-              <th style={{ textAlign: "left", padding: 8 }}>
+              <th style={{ textAlign: "left", padding: 8, position: "sticky", top: 44, background: "#f1f5f9" }}>
                 <input type="text" value={filters.holding_id ?? ""} onChange={(e)=>onFilterChange("holding_id", e.target.value)} style={{ width: "100%", maxWidth: 140, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }} />
               </th>
-              <th style={{ textAlign: "left", padding: 8 }}>
+              <th style={{ textAlign: "left", padding: 8, position: "sticky", top: 44, background: "#f1f5f9" }}>
                 <input type="text" value={filters.portfolio_id ?? ""} onChange={(e)=>onFilterChange("portfolio_id", e.target.value)} style={{ width: "100%", maxWidth: 120, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }} />
               </th>
-              <th style={{ textAlign: "left", padding: 8 }}>
+              <th style={{ textAlign: "left", padding: 8, position: "sticky", top: 44, background: "#f1f5f9" }}>
                 <input type="text" value={filters.security_id ?? ""} onChange={(e)=>onFilterChange("security_id", e.target.value)} style={{ width: "100%", maxWidth: 120, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }} />
               </th>
             </tr>
