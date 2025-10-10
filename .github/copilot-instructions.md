@@ -1,0 +1,25 @@
+# Portfolio Management Copilot Guide
+
+- **Architecture**
+  - FastAPI backend lives in `source_code`; `main.py` mounts routers from `source_code/crud/*_api_routes.py` and exposes everything under `/`.
+  - Each router delegates to a singleton in `source_code/crud/*_crud_operations.py`; these classes inherit `BaseCRUD` but override persistence to call `pg_db_conn_manager.fetch_data/execute_query`.
+  - Shared Pydantic models sit in `source_code/models/models.py`; generate IDs and timestamps via `source_code/utils/domain_utils.get_timestamp_with_microseconds()` and `get_current_date_time()` when creating records.
+- **Database & External Services**
+  - Postgres connectivity is centralized in `source_code/config/pg_db_conn_manager.py`; set `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS`, and `DB_PORT` (see `.env`) before running the API.
+  - Transaction views require the DDL in `source_code/config/sql/create_view_transaction_full.sql`; load it once so `/transactions` can return `TransactionFullView` rows.
+  - Security price downloads (`security_price_api_routes.download_prices_by_date`) depend on `yfinance` and `pandas`; install those plus `psycopg2-binary` locally even though `requirements.txt` omits them.
+- **API Patterns**
+  - REST handlers expect the corresponding `*Input` models and return typed DTOs; server assigns primary keys, so clients should omit `*_id` fields on create.
+  - CSV endpoints normalize headers case-insensitively and either return created rows or summary dicts (see `/securities/bulk-csv-string`, `/transactions/bulk-by-name-csv`); reuse helpers instead of hand-rolling parsing.
+  - Holdings recalculation flows through `holding_crud.recalc_for_date`, aggregating transactions and latest prices—extend this workflow instead of recomputing in routes.
+  - Default `/transactions` GET uses `transaction_crud.list_full()`; call `list_all()` only when you need raw table data without joins.
+- **Frontend**
+  - The Vite/React client is under `src`; `src/api/client.js` centralizes fetch calls and injects the Bearer token from `localStorage`.
+  - Tables and forms are driven by metadata in `src/models/fields.js`; add fields there to surface new columns across list, detail, and form components.
+  - Authentication state comes from `src/context/AuthContext.jsx`; wrap any new protected pages with `ProtectedRoute` and use `trackEvent` from `src/utils/telemetry.js` for analytics consistency.
+- **Developer Workflow**
+  - Backend: `pip install -r requirements.txt` (add `psycopg2-binary`, `pandas`, `yfinance` as needed) then run `uvicorn source_code.main:app --reload` from the repo root.
+  - Frontend: `npm install` followed by `npm run dev`; configure `VITE_API_BASE_URL` if the backend is not on `http://localhost:8000`.
+  - Tests: execute `pytest`; `tests/conftest.py` monkeypatches `pg_db_conn_manager`, so new data access helpers must route through that module to stay testable.
+  - Sample CSV fixtures live in `samples/`; use them to validate upload endpoints like `/transactions/bulk-by-name-csv` and `/holdings/bulk-csv`.
+  - Data ingestion scripts (e.g., `source_code/utils/company_valuations_loader.py`) run with `python -m source_code.utils.company_valuations_loader --file <csv>` and reuse the CRUD singletons, so keep those modules import-safe.

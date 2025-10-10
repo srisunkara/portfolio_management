@@ -233,3 +233,38 @@ class TransactionByNameInput(BaseModel):
     management_fee_percent: float = 0.0
     external_manager_fee: float = 0.0
     external_manager_fee_percent: float = 0.0
+
+
+class CompanyValuationDtl(BaseModel):
+    company_valuation_id: int
+    as_of_date: date = Field(default_factory=date.today)
+    price_source: str = "External"
+    company: Optional[str] = None
+    sector_subsector: Optional[str] = None
+    price: Optional[float] = None
+    price_change_amt: Optional[float] = None
+    price_change_perc: Optional[float] = None
+    last_matched_price: Optional[str] = None
+    share_class: Optional[str] = None
+    post_money_valuation: Optional[str] = None
+    price_per_share: Optional[float] = None
+    amount_raised: Optional[str] = None
+    raw_data_json: Optional[dict] = None
+    created_ts: datetime = datetime.now(timezone.utc)
+    last_updated_ts: datetime = datetime.now(timezone.utc)
+
+
+class CompanyValuationDtlInput(BaseModel):
+    as_of_date: date = Field(default_factory=date.today)
+    price_source: str = "External"
+    company: Optional[str] = None
+    sector_subsector: Optional[str] = None
+    price: Optional[float] = None
+    price_change_amt: Optional[float] = None
+    price_change_perc: Optional[float] = None
+    last_matched_price: Optional[str] = None
+    share_class: Optional[str] = None
+    post_money_valuation: Optional[str] = None
+    price_per_share: Optional[float] = None
+    amount_raised: Optional[str] = None
+    raw_data_json: Optional[dict] = None

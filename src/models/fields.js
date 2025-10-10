@@ -113,7 +113,7 @@ export const modelFieldDefs = {
     { name: "security_id", type: "integer" },
     { name: "external_platform_id", type: "integer" },
   ],
-};
+ };
 
 // Return ordered fields (in model-defined order)
 export function getOrderedFields(modelName) {
