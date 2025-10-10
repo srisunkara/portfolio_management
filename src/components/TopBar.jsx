@@ -74,6 +74,7 @@ export default function TopBar() {
         <Dropdown label="Portfolio Admin">
           <MenuLink to="/holdings/recalculate">Recalculate Holdings</MenuLink>
           <MenuLink to="/portfolio-admin/download-prices">Download Prices</MenuLink>
+          <MenuLink to="/transactions/performance-comparison">Performance Comparison</MenuLink>
         </Dropdown>
 
       </nav>

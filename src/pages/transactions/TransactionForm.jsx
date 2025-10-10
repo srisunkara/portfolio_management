@@ -38,6 +38,18 @@ export default function TransactionForm({ mode }) {
           if (Object.prototype.hasOwnProperty.call(initial, "transaction_type")) {
             initial.transaction_type = "B";
           }
+          // Default all fees to 0 for new transactions
+          const feeFields = [
+            "transaction_fee", "transaction_fee_percent",
+            "management_fee", "management_fee_percent", 
+            "external_manager_fee", "external_manager_fee_percent",
+            "carry_fee", "carry_fee_percent"
+          ];
+          for (const feeField of feeFields) {
+            if (Object.prototype.hasOwnProperty.call(initial, feeField)) {
+              initial[feeField] = 0;
+            }
+          }
         }
         if (alive) {
           setFields(f);

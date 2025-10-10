@@ -151,18 +151,6 @@ def delete_user(user_id: int):
     return {"deleted": True}
 
 
-def verify_password(plain: str, stored: str) -> bool:
-    try:
-        algo, iters_str, salt_b64, hash_b64 = stored.split("$", 3)
-        if algo != ALGO:
-            return False
-        iterations = int(iters_str)
-        salt = base64.urlsafe_b64decode(salt_b64.encode())
-        expected = base64.urlsafe_b64decode(hash_b64.encode())
-        dk = hashlib.pbkdf2_hmac("sha256", plain.encode(), salt, iterations, dklen=len(expected))
-        return hmac.compare_digest(dk, expected)
-    except Exception:
-        return False
 
 
 def sign_token(payload: dict) -> str:
@@ -178,16 +166,30 @@ class LoginRequest(BaseModel):
 
 @router.post("/login")
 def login(body: LoginRequest):
+    print(f"DEBUG: Login attempt for email: {body.email}")
+    
     if not body.email or not body.password:
+        print("DEBUG: Empty email or password")
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     user = user_crud.get_by_email(body.email)
+    print(f"DEBUG: User found: {user is not None}")
+    if user:
+        print(f"DEBUG: User has password_hash: {user.password_hash is not None}")
+        print(f"DEBUG: Password hash: {user.password_hash}")
+    
     if user is None or not user.password_hash:
+        print("DEBUG: No user found or no password hash")
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    if not auth_utils.verify_password(body.password, user.password_hash):
+    password_valid = auth_utils.verify_password(body.password, user.password_hash)
+    print(f"DEBUG: Password verification result: {password_valid}")
+    
+    if not password_valid:
+        print("DEBUG: Password verification failed")
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
+    print("DEBUG: Login successful, generating token")
     now = datetime.utcnow()
     payload = {"sub": str(user.user_id), "email": user.email, "exp": (now + timedelta(minutes=TOKEN_TTL_MIN)).timestamp()}
     token = sign_token(payload)

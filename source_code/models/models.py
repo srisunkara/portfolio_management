@@ -102,6 +102,7 @@ class TransactionDtl(BaseModel):
     external_manager_fee: float = 0.0
     external_manager_fee_percent: float = 0.0
     total_inv_amt: Optional[float] = 0.0
+    rel_transaction_id: Optional[int] = None
     created_ts: datetime = datetime.now(timezone.utc)
     last_updated_ts: datetime = datetime.now(timezone.utc)
 
@@ -124,6 +125,7 @@ class TransactionDtlInput(BaseModel):
     external_manager_fee: float = 0.0
     external_manager_fee_percent: float = 0.0
     total_inv_amt: Optional[float] = 0.0
+    rel_transaction_id: Optional[int] = None
 
 
 class HoldingDtl(BaseModel):
@@ -212,6 +214,7 @@ class TransactionFullView(BaseModel):
     total_fee: Optional[float] = None
     net_amount: Optional[float] = None
     total_inv_amt: Optional[float] = None
+    rel_transaction_id: Optional[int] = None
     created_ts: datetime
     last_updated_ts: datetime
 

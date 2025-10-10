@@ -71,6 +71,139 @@ def get_transaction_form_data() -> dict[str, Any]:
     }
 
 
+# Get linked transaction pairs for performance comparison
+@router.get("/linked-pairs")
+def get_linked_transaction_pairs():
+    """Get all linked transaction pairs (original and duplicate transactions)"""
+    try:
+        all_transactions = transaction_crud.list_full()
+        
+        # Find transactions that have duplicates (rel_transaction_id is not None)
+        duplicate_transactions = [t for t in all_transactions if t.rel_transaction_id is not None]
+        
+        # Build pairs: original transaction and its duplicate
+        pairs = []
+        for duplicate in duplicate_transactions:
+            original = next((t for t in all_transactions if t.transaction_id == duplicate.rel_transaction_id), None)
+            if original:
+                pairs.append({
+                    "pair_id": f"{original.transaction_id}-{duplicate.transaction_id}",
+                    "original": {
+                        "transaction_id": original.transaction_id,
+                        "transaction_date": original.transaction_date.isoformat(),
+                        "security_ticker": original.security_ticker,
+                        "security_name": original.security_name,
+                        "total_inv_amt": original.total_inv_amt,
+                        "portfolio_name": original.portfolio_name
+                    },
+                    "duplicate": {
+                        "transaction_id": duplicate.transaction_id,
+                        "transaction_date": duplicate.transaction_date.isoformat(),
+                        "security_ticker": duplicate.security_ticker,
+                        "security_name": duplicate.security_name,
+                        "total_inv_amt": duplicate.total_inv_amt,
+                        "portfolio_name": duplicate.portfolio_name
+                    }
+                })
+        
+        return {"pairs": pairs}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Get performance data for a specific linked transaction pair
+@router.get("/performance-comparison/{pair_id}")
+def get_performance_comparison(pair_id: str, from_date: date, to_date: date):
+    """Get performance data for a linked transaction pair over a date range"""
+    try:
+        # Parse pair_id to get original and duplicate transaction IDs
+        parts = pair_id.split("-")
+        if len(parts) != 2:
+            raise HTTPException(status_code=400, detail="Invalid pair_id format")
+        
+        original_id = int(parts[0])
+        duplicate_id = int(parts[1])
+        
+        # Get the transactions
+        all_transactions = transaction_crud.list_full()
+        original = next((t for t in all_transactions if t.transaction_id == original_id), None)
+        duplicate = next((t for t in all_transactions if t.transaction_id == duplicate_id), None)
+        
+        if not original or not duplicate:
+            raise HTTPException(status_code=404, detail="Transaction pair not found")
+        
+        # Import security price operations
+        from source_code.crud.security_price_crud_operations import security_price_crud
+        
+        # Get price data for both securities over the date range
+        original_prices = security_price_crud.list_by_date_range_and_ticker(
+            from_date=from_date, 
+            to_date=to_date, 
+            ticker=original.security_ticker
+        )
+        
+        duplicate_prices = security_price_crud.list_by_date_range_and_ticker(
+            from_date=from_date, 
+            to_date=to_date, 
+            ticker=duplicate.security_ticker
+        )
+        
+        # Calculate performance data
+        original_performance = []
+        duplicate_performance = []
+        
+        # Get baseline prices (first price in the selected date range)
+        original_baseline_price = original_prices[0].price if original_prices else None
+        duplicate_baseline_price = duplicate_prices[0].price if duplicate_prices else None
+        
+        # Calculate daily performance relative to the first date in range
+        for price in original_prices:
+            if original_baseline_price:
+                performance = ((price.price - original_baseline_price) / original_baseline_price) * 100
+                original_performance.append({
+                    "date": price.price_date.isoformat(),
+                    "performance": round(performance, 2),
+                    "price": price.price
+                })
+        
+        for price in duplicate_prices:
+            if duplicate_baseline_price:
+                performance = ((price.price - duplicate_baseline_price) / duplicate_baseline_price) * 100
+                duplicate_performance.append({
+                    "date": price.price_date.isoformat(),
+                    "performance": round(performance, 2),
+                    "price": price.price
+                })
+        
+        return {
+            "pair_info": {
+                "original": {
+                    "security_ticker": original.security_ticker,
+                    "security_name": original.security_name,
+                    "transaction_date": original.transaction_date.isoformat(),
+                    "total_inv_amt": original.total_inv_amt,
+                    "initial_price": original_baseline_price
+                },
+                "duplicate": {
+                    "security_ticker": duplicate.security_ticker,
+                    "security_name": duplicate.security_name,
+                    "transaction_date": duplicate.transaction_date.isoformat(),
+                    "total_inv_amt": duplicate.total_inv_amt,
+                    "initial_price": duplicate_baseline_price
+                }
+            },
+            "performance_data": {
+                "original": original_performance,
+                "duplicate": duplicate_performance
+            }
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail="Invalid pair_id format")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Bulk save JSON array
 @router.post("/bulk", response_model=list[TransactionDtl])
 def save_transactions_bulk(txns: list[TransactionDtlInput]):
@@ -376,9 +509,6 @@ async def upload_transactions_by_name_csv(file: UploadFile = File(...)) -> dict[
         loaded.append(transaction_crud.save(tx_input))
 
     return {"loaded": loaded, "excluded": excluded}
-
-
-
 
 
 # Recalculate fees based on percent fields for all transactions

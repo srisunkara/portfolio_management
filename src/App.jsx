@@ -8,7 +8,9 @@ import PortfolioForm from "./pages/portfolios/PortfolioForm.jsx";
 import PortfolioDelete from "./pages/portfolios/PortfolioDelete.jsx";
 import TransactionsList from "./pages/transactions/TransactionsList.jsx";
 import TransactionForm from "./pages/transactions/TransactionForm.jsx";
+import TransactionDuplicate from "./pages/transactions/TransactionDuplicate.jsx";
 import TransactionDelete from "./pages/transactions/TransactionDelete.jsx";
+import TransactionPerformanceComparison from "./pages/transactions/TransactionPerformanceComparison.jsx";
 import HoldingForm from "./pages/holdings/HoldingForm.jsx";
 import HoldingDelete from "./pages/holdings/HoldingDelete.jsx";
 import HoldingsRecalculate from "./pages/holdings/HoldingsRecalculate.jsx";
@@ -60,7 +62,9 @@ export default function App() {
           <Route path="/transactions" element={<ProtectedRoute><TransactionsList /></ProtectedRoute>} />
                     <Route path="/transactions/new" element={<ProtectedRoute><TransactionForm mode="create" /></ProtectedRoute>} />
                     <Route path="/transactions/:id/edit" element={<ProtectedRoute><TransactionForm mode="edit" /></ProtectedRoute>} />
+                    <Route path="/transactions/:id/duplicate" element={<ProtectedRoute><TransactionDuplicate /></ProtectedRoute>} />
                     <Route path="/transactions/:id/delete" element={<ProtectedRoute><TransactionDelete /></ProtectedRoute>} />
+                    <Route path="/transactions/performance-comparison" element={<ProtectedRoute><TransactionPerformanceComparison /></ProtectedRoute>} />
 
           {/* Securities */}
           <Route path="/securities" element={<ProtectedRoute><SecuritiesList /></ProtectedRoute>} />

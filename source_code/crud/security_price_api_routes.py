@@ -17,10 +17,26 @@ import yfinance as yf
 router = APIRouter(prefix="/security-prices", tags=["Security Prices"])
 
 @router.get("/", response_model=list[SecurityPriceDtl])
-def list_security_prices(date: date | None = None):
+def list_security_prices(
+    date: date | None = None,
+    from_date: date | None = None,
+    to_date: date | None = None,
+    ticker: str | None = None
+):
+    # Support legacy single date parameter for backward compatibility
     if date is not None:
         return security_price_crud.list_by_date(date)
-    return security_price_crud.list_all()
+    
+    # New date range and ticker filtering
+    if from_date is not None or to_date is not None or ticker is not None:
+        return security_price_crud.list_by_date_range_and_ticker(from_date, to_date, ticker)
+    
+    # Performance optimization: Never load all records without filters
+    # Default to last 7 days if no filters provided to prevent slow loading
+    from datetime import date as _date, timedelta
+    default_to_date = _date.today()
+    default_from_date = default_to_date - timedelta(days=7)
+    return security_price_crud.list_by_date_range_and_ticker(default_from_date, default_to_date, None)
 
 @router.get("/{security_price_id}", response_model=SecurityPriceDtl)
 def get_security_price(security_price_id: int):

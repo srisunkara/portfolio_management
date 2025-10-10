@@ -32,6 +32,55 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
         )
         return [SecurityPriceDtl(**row) for row in rows]
 
+    def list_by_date_range_and_ticker(self, from_date=None, to_date=None, ticker=None) -> List[SecurityPriceDtl]:
+        """Get security prices filtered by date range and/or ticker"""
+        # Build dynamic query based on provided filters
+        conditions = []
+        params = []
+        
+        if from_date is not None:
+            conditions.append("price_date >= %s")
+            params.append(from_date)
+            
+        if to_date is not None:
+            conditions.append("price_date <= %s")
+            params.append(to_date)
+            
+        if ticker is not None:
+            conditions.append("upper(ticker) = %s")
+            params.append(ticker.strip().upper())
+        
+        where_clause = ""
+        if conditions:
+            where_clause = "WHERE " + " AND ".join(conditions)
+        
+        query = (
+            "SELECT security_price_id, price_dtl.security_id, price_source_id, price_date,  "
+            "price, market_cap, addl_notes, price_currency, price_dtl.created_ts, price_dtl.last_updated_ts "
+            "FROM security_price_dtl price_dtl "
+            "inner join security_dtl on price_dtl.security_id = security_dtl.security_id "
+            f"{where_clause} "
+            "ORDER BY price_date ASC, ticker, name, security_id"
+        )
+        
+        rows = pg_db_conn_manager.fetch_data(query, tuple(params))
+        return [SecurityPriceDtl(**row) for row in rows]
+
+    def get_price_by_ticker_and_date(self, ticker: str, price_date) -> Optional[SecurityPriceDtl]:
+        """Get security price for a specific ticker and date"""
+        rows = pg_db_conn_manager.fetch_data(
+            "SELECT security_price_id, price_dtl.security_id, price_source_id, price_date,  "
+            "price, market_cap, addl_notes, price_currency, price_dtl.created_ts, price_dtl.last_updated_ts "
+            "FROM security_price_dtl price_dtl "
+            "inner join security_dtl on price_dtl.security_id = security_dtl.security_id "
+            "WHERE ticker = %s AND price_date = %s "
+            "ORDER BY price_dtl.last_updated_ts DESC LIMIT 1",
+            (ticker, price_date)
+        )
+        if not rows:
+            return None
+        return SecurityPriceDtl(**rows[0])
+
     # Save single price (generate ID and timestamps) with natural-key upsert
     # Natural key: (security_id, price_source_id, price_date)
     # If a row already exists for this combination, update it instead of inserting a duplicate.

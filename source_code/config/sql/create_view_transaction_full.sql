@@ -63,6 +63,9 @@ SELECT
 
     -- Persisted or computed total investment amount
     t.total_inv_amt,
+    
+    -- Related transaction ID for duplicate tracking
+    t.rel_transaction_id,
 
     -- Timestamps
     t.created_ts,

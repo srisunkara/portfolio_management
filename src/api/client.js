@@ -70,6 +70,14 @@ export const api = {
 
   // Security Prices
   listSecurityPrices: (date) => request(`/security-prices${date ? `?date=${encodeURIComponent(date)}` : ""}`, { method: "GET" }),
+  listSecurityPricesWithFilters: (fromDate, toDate, ticker) => {
+    const params = new URLSearchParams();
+    if (fromDate) params.append('from_date', fromDate);
+    if (toDate) params.append('to_date', toDate);
+    if (ticker && ticker.trim()) params.append('ticker', ticker.trim());
+    const queryString = params.toString();
+    return request(`/security-prices${queryString ? `?${queryString}` : ""}`, { method: "GET" });
+  },
   getSecurityPrice: (id) => request(`/security-prices/${id}`, { method: "GET" }),
   createSecurityPrice: (payload) => request("/security-prices/", { method: "POST", body: JSON.stringify(payload) }),
   updateSecurityPrice: (id, payload) => request(`/security-prices/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
@@ -87,4 +95,12 @@ export const api = {
   deleteTransaction: (id) => request(`/transactions/${id}`, { method: "DELETE" }),
   // Maintenance
   recalculateTransactionFees: () => request("/transactions/recalculate-fees", { method: "POST" }),
+  // Performance comparison
+  getLinkedTransactionPairs: () => request("/transactions/linked-pairs", { method: "GET" }),
+  getPerformanceComparison: (pairId, fromDate, toDate) => {
+    const params = new URLSearchParams();
+    params.append('from_date', fromDate);
+    params.append('to_date', toDate);
+    return request(`/transactions/performance-comparison/${pairId}?${params.toString()}`, { method: "GET" });
+  },
 };

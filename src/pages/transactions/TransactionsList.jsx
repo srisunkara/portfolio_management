@@ -228,6 +228,9 @@ export default function TransactionsList() {
             {recalcMessage}
           </span>
         ) : null}
+        <Link to="/transactions/performance-comparison" style={{ background: "#10b981", color: "white", padding: "8px 12px", borderRadius: 8, textDecoration: "none", marginRight: 8 }}>
+          Performance Comparison
+        </Link>
         <Link to="/transactions/new" style={{ background: "#0f172a", color: "white", padding: "8px 12px", borderRadius: 8, textDecoration: "none" }}>
           Add Transaction
         </Link>
@@ -298,6 +301,8 @@ export default function TransactionsList() {
           <tbody>
             {sortedRows.map((t, idx) => {
               const id = t.transaction_id ?? t.id;
+              // Check if this transaction ID appears as rel_transaction_id in any other transaction
+              const hasBeenDuplicated = sortedRows.some(other => other.rel_transaction_id === id);
               return (
                 <tr key={id ?? JSON.stringify(t)} style={{ borderTop: "1px solid #e2e8f0", background: idx % 2 === 1 ? "#f8fafc" : "white" }}>
                   <td style={{ padding: 12, whiteSpace: "nowrap" }}>
@@ -305,6 +310,11 @@ export default function TransactionsList() {
                       <Link to={`/transactions/${id}/edit`} title="Edit" aria-label="Edit transaction">
                         <img src={editImg} alt="Edit" style={{ width: 20, height: 20 }} />
                       </Link>
+                      {!hasBeenDuplicated && (
+                        <Link to={`/transactions/${id}/duplicate`} title="Duplicate as VOO" aria-label="Duplicate transaction as VOO">
+                          <span style={{ fontSize: 16, color: "#0f172a", textDecoration: "none" }}>⧉</span>
+                        </Link>
+                      )}
                       <Link to={`/transactions/${id}/delete`} title="Delete" aria-label="Delete transaction">
                         <img src={deleteImg} alt="Delete" style={{ width: 20, height: 20 }} />
                       </Link>

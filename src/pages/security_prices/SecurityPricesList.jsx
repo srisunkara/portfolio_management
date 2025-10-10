@@ -13,7 +13,8 @@ export default function SecurityPricesList() {
   const [platformsById, setPlatformsById] = React.useState({});
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
-  const [pricingDate, setPricingDate] = React.useState(() => {
+  // Date range filtering states
+  const [fromDate, setFromDate] = React.useState(() => {
     // Default to last weekday (Fri if weekend)
     const d = new Date();
     const day = d.getDay(); // 0=Sun,6=Sat
@@ -24,63 +25,71 @@ export default function SecurityPricesList() {
     const dd = String(d.getDate()).padStart(2, "0");
     return `${yyyy}-${mm}-${dd}`;
   });
+  const [toDate, setToDate] = React.useState(() => {
+    // Default to today
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  });
+  const [ticker, setTicker] = React.useState("");
 
-  React.useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        setLoading(true);
-        // Base fields from model
-        const base = getOrderedFields("SecurityPriceDtl");
-        // Insert derived columns: after `price_date` add security info; after `price_source_id` add a friendly price_source column
-        const idxDate = base.findIndex((f) => f.name === "price_date");
-        const idxSource = base.findIndex((f) => f.name === "market_cap");
-        const augmented = [...base];
-        const derivedAfterDate = [
-          { name: "security_ticker", type: "string" },
-          { name: "security_name", type: "string" },
-        ];
-        if (idxDate >= 0) {
-          augmented.splice(idxDate + 1, 0, ...derivedAfterDate);
-        } else {
-          augmented.push(...derivedAfterDate);
-        }
-        if (idxSource >= 0) {
-          augmented.splice(idxSource + 1, 0, { name: "price_source", type: "string" });
-        } else {
-          augmented.push({ name: "price_source", type: "string" });
-        }
-        if (alive) setFields(augmented);
-
-        // Data, scoped by pricingDate
-        const [prices, securities, platforms] = await Promise.all([
-          api.listSecurityPrices(pricingDate),
-          api.listSecurities(),
-          api.listExternalPlatforms(),
-        ]);
-        const secMap = {};
-        for (const s of securities || []) {
-          secMap[s.security_id] = { ticker: s.ticker, name: s.name };
-        }
-        const platMap = {};
-        for (const p of platforms || []) {
-          platMap[p.external_platform_id] = p.name;
-        }
-        if (alive) {
-          setSecuritiesById(secMap);
-          setPlatformsById(platMap);
-          setRows(prices || []);
-          // Also default the inline filter to the pricingDate
-          setFilters((prev) => ({ ...prev, price_date: pricingDate }));
-        }
-      } catch (e) {
-        if (alive) setError("Failed to load security prices.");
-      } finally {
-        if (alive) setLoading(false);
+  // Load data function (extracted from useEffect)
+  const loadData = React.useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      // Base fields from model
+      const base = getOrderedFields("SecurityPriceDtl");
+      // Insert derived columns: after `price_date` add security info; after `price_source_id` add a friendly price_source column
+      const idxDate = base.findIndex((f) => f.name === "price_date");
+      const idxSource = base.findIndex((f) => f.name === "market_cap");
+      const augmented = [...base];
+      const derivedAfterDate = [
+        { name: "security_ticker", type: "string" },
+        { name: "security_name", type: "string" },
+      ];
+      if (idxDate >= 0) {
+        augmented.splice(idxDate + 1, 0, ...derivedAfterDate);
+      } else {
+        augmented.push(...derivedAfterDate);
       }
-    })();
-    return () => (alive = false);
-  }, [pricingDate]);
+      if (idxSource >= 0) {
+        augmented.splice(idxSource + 1, 0, { name: "price_source", type: "string" });
+      } else {
+        augmented.push({ name: "price_source", type: "string" });
+      }
+      setFields(augmented);
+
+      // Data, scoped by date range and ticker filters
+      const [prices, securities, platforms] = await Promise.all([
+        api.listSecurityPricesWithFilters(fromDate, toDate, ticker),
+        api.listSecurities(),
+        api.listExternalPlatforms(),
+      ]);
+      const secMap = {};
+      for (const s of securities || []) {
+        secMap[s.security_id] = { ticker: s.ticker, name: s.name };
+      }
+      const platMap = {};
+      for (const p of platforms || []) {
+        platMap[p.external_platform_id] = p.name;
+      }
+      setSecuritiesById(secMap);
+      setPlatformsById(platMap);
+      setRows(prices || []);
+    } catch (e) {
+      setError("Failed to load security prices.");
+    } finally {
+      setLoading(false);
+    }
+  }, [fromDate, toDate, ticker]);
+
+  // Initial load on component mount
+  React.useEffect(() => {
+    loadData();
+  }, []); // Only run once on mount
 
   const onFilterChange = (name, value) => setFilters((prev) => ({ ...prev, [name]: value }));
   const clearFilters = () => setFilters({});
@@ -161,14 +170,49 @@ export default function SecurityPricesList() {
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <h1 style={{ marginTop: 0, marginBottom: 0, flex: 1 }}>Security Prices</h1>
         <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span>Pricing Date</span>
+          <span>From Date</span>
           <input
             type="date"
-            value={pricingDate}
-            onChange={(e) => setPricingDate(e.target.value)}
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
             style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
           />
         </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span>To Date</span>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
+          />
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span>Ticker</span>
+          <input
+            type="text"
+            value={ticker}
+            onChange={(e) => setTicker(e.target.value)}
+            placeholder="e.g. VOO"
+            style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1", width: 100 }}
+          />
+        </label>
+        <button
+          type="button"
+          onClick={loadData}
+          disabled={loading}
+          style={{ 
+            background: loading ? "#94a3b8" : "#10b981", 
+            color: "white", 
+            padding: "8px 12px", 
+            borderRadius: 8, 
+            border: "none", 
+            cursor: loading ? "not-allowed" : "pointer",
+            fontWeight: 600
+          }}
+        >
+          {loading ? "Loading..." : "Refresh"}
+        </button>
         <button
           type="button"
           onClick={clearFilters}
