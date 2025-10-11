@@ -169,7 +169,7 @@ class SecurityPriceDtl(BaseModel):
     price_date: date = date.today()
     price: float
     market_cap: float = 0.0
-    addl_notes: str = None
+    addl_notes: Optional[str] = None
     price_currency: str = 'USD'
     created_ts: datetime = datetime.now(timezone.utc)
     last_updated_ts: datetime = datetime.now(timezone.utc)
@@ -181,7 +181,7 @@ class SecurityPriceDtlInput(BaseModel):
     price_date: date = date.today()
     price: float
     market_cap: float = 0.0
-    addl_notes: str = None
+    addl_notes: Optional[str] = None
     price_currency: str = 'USD'
     created_ts: datetime = datetime.now(timezone.utc)
     last_updated_ts: datetime = datetime.now(timezone.utc)

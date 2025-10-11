@@ -58,7 +58,7 @@ def save_security_prices_bulk(prices: list[SecurityPriceDtlInput]):
     return security_price_crud.save_many(prices)
 
 # CSV upload -> reuse bulk save
-# Expected headers (case-insensitive): security_id, price_source_id, price_date, price, market_cap, [addl_notes] [price_currency]
+# Expected headers (case-insensitive): security_id, price_source_id, price_date, price, [market_cap] [addl_notes] [price_currency]
 @router.post("/bulk-csv", response_model=list[SecurityPriceDtl])
 async def upload_security_prices_csv(file: UploadFile = File(...)):
     if not file.filename.lower().endswith(".csv"):
@@ -73,7 +73,7 @@ async def upload_security_prices_csv(file: UploadFile = File(...)):
         reader = csv.DictReader(io.StringIO(text))
 
         headers = [h.strip().lower() for h in (reader.fieldnames or [])]
-        required = {"security_id", "price_source_id", "price_date", "price", "market_cap"}
+        required = {"security_id", "price_source_id", "price_date", "price"}
         missing = required - set(headers)
         if missing:
             raise HTTPException(status_code=400, detail=f"Missing required CSV headers: {', '.join(sorted(missing))}")
@@ -90,7 +90,8 @@ async def upload_security_prices_csv(file: UploadFile = File(...)):
                 price_source_id = int(get_val("price_source_id"))
                 price_date = get_val("price_date")  # FastAPI/Pydantic will parse ISO dates
                 price = float(get_val("price"))
-                market_cap = float(get_val("market_cap"))
+                market_cap_str = get_val("market_cap")
+                market_cap = float(market_cap_str) if market_cap_str else 0.0
                 price_currency = (get_val("price_currency") or "USD").upper()
                 # convert price_date to a date object if available. Otherwise, default today
                 if price_date:

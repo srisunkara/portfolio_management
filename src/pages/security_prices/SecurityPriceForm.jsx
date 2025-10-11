@@ -73,25 +73,35 @@ export default function SecurityPriceForm() {
     e.preventDefault();
     setError("");
     setSaving(true);
+    
+    // Validate required fields
+    if (!form.security_id || !form.price_source_id || !form.price_date || !form.price) {
+      setError("Please fill in all required fields (Security, Price Source, Date, and Price).");
+      setSaving(false);
+      return;
+    }
+    
     try {
       const payload = {
-        security_price_id: Number(id),
-        security_id: form.security_id === "" ? null : Number(form.security_id),
-        price_source_id: form.price_source_id === "" ? null : Number(form.price_source_id),
+        security_id: Number(form.security_id),
+        price_source_id: Number(form.price_source_id),
         price_date: form.price_date,
-        price: form.price === "" ? null : Number(form.price),
-        market_cap: form.market_cap === "" ? null : Number(form.market_cap),
-        addl_notes: form.addl_notes || null,
-        price_currency: form.price_currency,
+        price: Number(form.price),
+        market_cap: form.market_cap === "" || form.market_cap === null || form.market_cap === undefined ? 0 : Number(form.market_cap),
+        addl_notes: form.addl_notes === "" ? null : (form.addl_notes || null),
+        price_currency: form.price_currency || "USD",
       };
+      
+      // Only include security_price_id for edit operations
       if (isEdit) {
+        payload.security_price_id = Number(id);
         await api.updateSecurityPrice(id, payload);
       } else {
         await api.createSecurityPrice(payload);
       }
       navigate("/security-prices", { replace: true });
     } catch (e) {
-      setError("Failed to update price.");
+      setError("Failed to save price.");
     } finally {
       setSaving(false);
     }

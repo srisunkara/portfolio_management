@@ -1,8 +1,10 @@
 import os
 from contextlib import contextmanager
 from typing import List, Dict, Any, Union
+import atexit
 
 import psycopg2
+from psycopg2 import pool
 
 # ❗ IMPORTANT: Replace these with your actual database credentials
 DB_HOST = os.getenv('DB_HOST', 'localhost')
@@ -11,30 +13,68 @@ DB_USER = os.getenv('DB_USER', 'postgres')
 DB_PASSWORD = os.getenv('DB_PASS')
 DB_PORT = os.getenv('DB_PORT', '5432')
 
+# Connection pool configuration
+MIN_CONN = int(os.getenv('DB_MIN_CONN', '2'))
+MAX_CONN = int(os.getenv('DB_MAX_CONN', '10'))
+
+# Global connection pool
+_connection_pool = None
+
+def init_connection_pool():
+    """Initialize the database connection pool."""
+    global _connection_pool
+    if _connection_pool is None:
+        try:
+            _connection_pool = psycopg2.pool.ThreadedConnectionPool(
+                MIN_CONN,
+                MAX_CONN,
+                host=DB_HOST,
+                database=DB_NAME,
+                user=DB_USER,
+                password=DB_PASSWORD,
+                port=DB_PORT
+            )
+            print(f"Connection pool created with {MIN_CONN}-{MAX_CONN} connections")
+        except psycopg2.OperationalError as e:
+            print(f"Failed to create connection pool: {e}")
+            raise
+
+def close_connection_pool():
+    """Close all connections in the pool."""
+    global _connection_pool
+    if _connection_pool:
+        _connection_pool.closeall()
+        _connection_pool = None
+        print("Connection pool closed")
+
+# Register cleanup function to close pool on exit
+atexit.register(close_connection_pool)
 
 @contextmanager
 def get_db_connection():
     """
-    Provides a database connection within a context manager.
-    The connection is automatically closed upon exiting the 'with' block.
+    Provides a database connection from the connection pool within a context manager.
+    The connection is returned to the pool upon exiting the 'with' block.
     """
+    global _connection_pool
+    if _connection_pool is None:
+        init_connection_pool()
+    
     conn = None
     try:
-        conn = psycopg2.connect(
-            host=DB_HOST,
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD,
-            port=DB_PORT
-        )
-        yield conn
+        conn = _connection_pool.getconn()
+        if conn:
+            # Reset connection state if needed
+            conn.rollback()
+            yield conn
+        else:
+            raise psycopg2.OperationalError("Could not get connection from pool")
     except psycopg2.OperationalError as e:
         print(f"Database connection failed: {e}")
         raise
     finally:
         if conn:
-            conn.close()
-            # print("Database connection closed.")
+            _connection_pool.putconn(conn)
 
 
 def dict_fetch_all(cursor) -> List[Dict[str, Any]]:
