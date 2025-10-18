@@ -16,6 +16,8 @@ RUN npm run build
 FROM python:3.11-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
+ARG APP_ENV=test
+ENV APP_ENV=${APP_ENV}
 WORKDIR /app
 
 # System deps (curl for healthcheck)

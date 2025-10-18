@@ -25,15 +25,70 @@ def _get_cli_env(argv: list[str]) -> str | None:
         return None
     return None
 
+# Accept DB password via CLI: --db-pass <val> or --db-password=<val>
+def _get_cli_db_pass(argv: list[str]) -> str | None:
+    try:
+        # Support both spaced and equals forms
+        if "--db-pass" in argv:
+            idx = argv.index("--db-pass")
+            if idx + 1 < len(argv):
+                return argv[idx + 1]
+        if "--db-password" in argv:
+            idx = argv.index("--db-password")
+            if idx + 1 < len(argv):
+                return argv[idx + 1]
+        for arg in argv:
+            if arg.startswith("--db-pass="):
+                return arg.split("=", 1)[1]
+            if arg.startswith("--db-password="):
+                return arg.split("=", 1)[1]
+    except Exception:
+        return None
+    return None
+
 _SELECTED_ENV = _get_cli_env(sys.argv) or os.environ.get("APP_ENV") or "test"
-_ENV_FILE = f".env.{_SELECTED_ENV}"
-if not Path(_ENV_FILE).is_file():
-    # Fallback to test if selected file doesn't exist
+_ENV_FILE_NAME = f".env.{_SELECTED_ENV}".lower()
+_APP_DIR = Path(__file__).resolve().parent
+_CWD_DIR = Path.cwd()
+
+# Look for the env file in both the current working directory and the app directory
+_candidates = [
+    _CWD_DIR / _ENV_FILE_NAME,
+    _APP_DIR / _ENV_FILE_NAME,
+]
+_env_path = next((p for p in _candidates if p.is_file()), None)
+
+# Fallback to test if selected file doesn't exist
+if _env_path is None:
+    print("[main] Env file not found for selected env; falling back to test")
     _SELECTED_ENV = "test"
-    _ENV_FILE = ".env.test"
+    _ENV_FILE_NAME = ".env.test"
+    _candidates = [
+        _CWD_DIR / _ENV_FILE_NAME,
+        _APP_DIR / _ENV_FILE_NAME,
+    ]
+    _env_path = next((p for p in _candidates if p.is_file()), None)
+
+# Diagnostics about resolution
+try:
+    print("[main] Selected env:", _SELECTED_ENV)
+    print("[main] Env search candidates:", ", ".join(str(p) for p in _candidates))
+    if _env_path:
+        print(f"[main] Using env file: {_env_path}")
+    else:
+        print("[main] No .env file found; proceeding without file load")
+except Exception:
+    pass
 
 # Load the environment file (does nothing if file missing)
-load_dotenv(dotenv_path=_ENV_FILE, override=False)
+if _env_path:
+    load_dotenv(dotenv_path=_env_path, override=False)
+
+# If provided on CLI, set DB_PASS to override .env/env
+_cli_db_pass = _get_cli_db_pass(sys.argv)
+if _cli_db_pass:
+    # Ensure it is available for downstream imports (e.g., connection pool)
+    os.environ["DB_PASS"] = _cli_db_pass
 
 from source_code.crud.auth_api_routes import router as auth_router
 from source_code.crud.holding_api_routes import router as holding_router
@@ -44,12 +99,20 @@ from source_code.crud.external_platform_api_routes import router as platform_rou
 from source_code.crud.transaction_api_routes import router as transaction_router
 from source_code.crud.user_api_routes import router as user_router
 
-app = FastAPI(title="Portfolio Manager")
+from contextlib import asynccontextmanager
 
-# Display selected environment on server startup
-@app.on_event("startup")
-async def _show_env_on_startup():
-    print(f"[startup] RUNNING_ENV={os.getenv('RUNNING_ENV', '')} (selected env: {_SELECTED_ENV}, file: {_ENV_FILE})")
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    # Startup
+    resolved = str(_env_path) if '_env_path' in globals() and _env_path else 'none'
+    print(f"[startup] RUNNING_ENV={os.getenv('RUNNING_ENV', '')} (selected env: {_SELECTED_ENV}, file: {resolved})")
+    try:
+        yield
+    finally:
+        # Shutdown (place for cleanup if needed in future)
+        pass
+
+app = FastAPI(title="Portfolio Manager", lifespan=_lifespan)
 
 # Enable gzip compression for responses (static and API)
 app.add_middleware(GZipMiddleware, minimum_size=500)

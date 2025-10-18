@@ -11,11 +11,11 @@ def get_instance():
 
 class DatabaseConfig:
     def __init__(self):
-        self.db_host = os.getenv('DB_HOST', 'localhost')
-        self.db_name = os.getenv('DB_NAME', 'investment_db')
-        self.db_user = os.getenv('DB_USER', 'postgres')
-        self.db_pass = os.getenv('DB_PASS')
-        self.db_port = os.getenv('DB_PORT', '5432')
+        self.db_host = os.getenv('POSTGRES_DB_HOST', 'localhost')
+        self.db_name = os.getenv('POSTGRES_DB_NAME', 'investment_db')
+        self.db_user = os.getenv('POSTGRES_DB_USER', 'postgres')
+        self.db_pass = os.getenv('POSTGRES_DB_PASS')
+        self.db_port = os.getenv('POSTGRES_DB_PORT', '5432')
 
     def get_connection_string(self):
         return f"host={self.db_host} dbname={self.db_name} user={self.db_user} password={self.db_pass} port={self.db_port}"
