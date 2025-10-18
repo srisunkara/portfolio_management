@@ -7,7 +7,7 @@ import hmac, hashlib, base64, json
 # e.g. from source_code.crud.user_crud_operations import user_crud
 # from source_code.models.models import User
 
-router = APIRouter(prefix="/auth", tags=["Auth"])
+router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
 SECRET = b"change-this-secret"
 TOKEN_TTL_MIN = 120

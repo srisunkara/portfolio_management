@@ -8,7 +8,7 @@ from fastapi.responses import Response
 from source_code.crud.external_platform_crud_operations import external_platform_crud
 from source_code.models.models import ExternalPlatformDtl, ExternalPlatformDtlInput, ALLOWED_PLATFORM_TYPES
 
-router = APIRouter(prefix="/external-platforms", tags=["External Platforms"])
+router = APIRouter(prefix="/api/external-platforms", tags=["External Platforms"])
 
 
 @router.post("/", response_model=ExternalPlatformDtl)

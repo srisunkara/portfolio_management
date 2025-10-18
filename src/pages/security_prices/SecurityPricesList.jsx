@@ -94,6 +94,7 @@ export default function SecurityPricesList() {
   const onFilterChange = (name, value) => setFilters((prev) => ({ ...prev, [name]: value }));
   const clearFilters = () => setFilters({});
 
+
   const compareNumberWithOp = (value, filterStr) => {
     if (filterStr == null || filterStr === "") return true;
     if (value == null || value === "") return false;
@@ -193,8 +194,8 @@ export default function SecurityPricesList() {
             type="text"
             value={ticker}
             onChange={(e) => setTicker(e.target.value)}
-            placeholder="e.g. VOO"
-            style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1", width: 100 }}
+            placeholder="e.g. VOO,AAPL"
+            style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1", width: 120 }}
           />
         </label>
         <button
@@ -224,6 +225,7 @@ export default function SecurityPricesList() {
           Add Price
         </Link>
       </div>
+
 
       <div style={{ background: "white", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflow: "auto", marginTop: 12, maxHeight: "calc(100vh - 180px)" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 960 }}>

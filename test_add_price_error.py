@@ -5,7 +5,7 @@ Test script to reproduce the "Failed to update price" error on add price page
 import requests
 import json
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:8000/api"
 
 def test_server_availability():
     """Test if the server is running"""

@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from source_code.crud.company_valuations_crud_operations import company_valuation_crud
 from source_code.models.models import CompanyValuationDtl, CompanyValuationDtlInput
 
-router = APIRouter(prefix="/company-valuations", tags=["Company Valuations"])
+router = APIRouter(prefix="/api/company-valuations", tags=["Company Valuations"])
 
 
 @router.get("/", response_model=list[CompanyValuationDtl])

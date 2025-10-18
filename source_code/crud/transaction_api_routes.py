@@ -17,7 +17,7 @@ from source_code.crud.security_crud_operations import security_crud
 from source_code.crud.transaction_crud_operations import transaction_crud
 from source_code.models.models import TransactionDtl, TransactionDtlInput, TransactionFullView, TransactionByNameInput
 
-router = APIRouter(prefix="/transactions", tags=["Transactions"])
+router = APIRouter(prefix="/api/transactions", tags=["Transactions"])
 
 
 @router.post("/", response_model=TransactionDtl)
@@ -126,8 +126,11 @@ def get_performance_comparison(pair_id: str, from_date: date, to_date: date):
         
         # Get the transactions
         all_transactions = transaction_crud.list_full()
-        original = next((t for t in all_transactions if t.transaction_id == original_id), None)
-        duplicate = next((t for t in all_transactions if t.transaction_id == duplicate_id), None)
+        original = transaction_crud.get_transaction_by_id(original_id)
+        duplicate = transaction_crud.get_transaction_by_id(duplicate_id)
+
+        # original = next((t for t in all_transactions if t.transaction_id == original_id), None)
+        # duplicate = next((t for t in all_transactions if t.transaction_id == duplicate_id), None)
         
         if not original or not duplicate:
             raise HTTPException(status_code=404, detail="Transaction pair not found")
@@ -148,33 +151,82 @@ def get_performance_comparison(pair_id: str, from_date: date, to_date: date):
             ticker=duplicate.security_ticker
         )
         
-        # Calculate performance data
+        # Calculate investment performance data
         original_performance = []
         duplicate_performance = []
         
-        # Get baseline prices (first price in the selected date range)
-        original_baseline_price = original_prices[0].price if original_prices else None
-        duplicate_baseline_price = duplicate_prices[0].price if duplicate_prices else None
+        # Use transaction prices as baseline for investment performance
+        original_transaction_price = original.transaction_price
+        duplicate_transaction_price = duplicate.transaction_price
         
-        # Calculate daily performance relative to the first date in range
+        # Calculate quantities based on investment amounts
+        original_qty = original.transaction_qty if original.transaction_qty else (original.total_inv_amt / original_transaction_price)
+        duplicate_qty = duplicate.transaction_qty if duplicate.transaction_qty else (duplicate.total_inv_amt / duplicate_transaction_price)
+        
+        # Calculate daily investment performance relative to transaction price
+        # Always use transaction price as baseline so performance starts at 0% on transaction date
+        # This ensures the graph shows performance for the selected date range rather than from first price date
+        original_baseline_value = original.total_inv_amt
+        
         for price in original_prices:
-            if original_baseline_price:
-                performance = ((price.price - original_baseline_price) / original_baseline_price) * 100
+            if original_transaction_price and original_qty and original_baseline_value:
+                # Current value of the investment
+                current_value = original_qty * price.price
+                # Investment performance vs baseline value (not original investment amount)
+                performance = ((current_value - original_baseline_value) / original_baseline_value) * 100
+                # Unrealized gain/loss in dollars (vs original investment amount)
+                unrealized_gain_loss = current_value - original.total_inv_amt
+                
                 original_performance.append({
                     "date": price.price_date.isoformat(),
                     "performance": round(performance, 2),
-                    "price": price.price
+                    "price": price.price,
+                    "current_value": round(current_value, 2),
+                    "unrealized_gain_loss": round(unrealized_gain_loss, 2),
+                    "unrealized_gain_loss_pct": round(((current_value - original.total_inv_amt) / original.total_inv_amt) * 100, 2)
                 })
         
+        # Calculate baseline for duplicate performance - always use transaction investment amount
+        # This ensures consistent baseline logic for both original and duplicate transactions
+        duplicate_baseline_value = duplicate.total_inv_amt
+        
         for price in duplicate_prices:
-            if duplicate_baseline_price:
-                performance = ((price.price - duplicate_baseline_price) / duplicate_baseline_price) * 100
+            if duplicate_transaction_price and duplicate_qty and duplicate_baseline_value:
+                # Current value of the investment
+                current_value = duplicate_qty * price.price
+                # Investment performance vs baseline value (not original investment amount)
+                performance = ((current_value - duplicate_baseline_value) / duplicate_baseline_value) * 100
+                # Unrealized gain/loss in dollars (vs original investment amount)
+                unrealized_gain_loss = current_value - duplicate.total_inv_amt
+                
                 duplicate_performance.append({
                     "date": price.price_date.isoformat(),
                     "performance": round(performance, 2),
-                    "price": price.price
+                    "price": price.price,
+                    "current_value": round(current_value, 2),
+                    "unrealized_gain_loss": round(unrealized_gain_loss, 2),
+                    "unrealized_gain_loss_pct": round(((current_value - duplicate.total_inv_amt) / duplicate.total_inv_amt) * 100, 2)
                 })
         
+        # Get latest performance for summary
+        latest_original_performance = original_performance[-1] if original_performance else None
+        latest_duplicate_performance = duplicate_performance[-1] if duplicate_performance else None
+        
+        # Calculate total fees for each transaction
+        original_total_fees = (
+            (original.transaction_fee or 0) +
+            (original.management_fee or 0) +
+            (original.external_manager_fee or 0) +
+            (original.carry_fee or 0)
+        )
+        
+        duplicate_total_fees = (
+            (duplicate.transaction_fee or 0) +
+            (duplicate.management_fee or 0) +
+            (duplicate.external_manager_fee or 0) +
+            (duplicate.carry_fee or 0)
+        )
+
         return {
             "pair_info": {
                 "original": {
@@ -182,14 +234,24 @@ def get_performance_comparison(pair_id: str, from_date: date, to_date: date):
                     "security_name": original.security_name,
                     "transaction_date": original.transaction_date.isoformat(),
                     "total_inv_amt": original.total_inv_amt,
-                    "initial_price": original_baseline_price
+                    "transaction_price": original_transaction_price,
+                    "quantity": round(original_qty, 4),
+                    "total_fees_paid": round(original_total_fees, 2),
+                    "current_value": latest_original_performance["current_value"] if latest_original_performance else None,
+                    "unrealized_gain_loss": latest_original_performance["unrealized_gain_loss"] if latest_original_performance else None,
+                    "unrealized_gain_loss_pct": latest_original_performance["unrealized_gain_loss_pct"] if latest_original_performance else None
                 },
                 "duplicate": {
                     "security_ticker": duplicate.security_ticker,
                     "security_name": duplicate.security_name,
                     "transaction_date": duplicate.transaction_date.isoformat(),
                     "total_inv_amt": duplicate.total_inv_amt,
-                    "initial_price": duplicate_baseline_price
+                    "transaction_price": duplicate_transaction_price,
+                    "quantity": round(duplicate_qty, 4),
+                    "total_fees_paid": round(duplicate_total_fees, 2),
+                    "current_value": latest_duplicate_performance["current_value"] if latest_duplicate_performance else None,
+                    "unrealized_gain_loss": latest_duplicate_performance["unrealized_gain_loss"] if latest_duplicate_performance else None,
+                    "unrealized_gain_loss_pct": latest_duplicate_performance["unrealized_gain_loss_pct"] if latest_duplicate_performance else None
                 }
             },
             "performance_data": {

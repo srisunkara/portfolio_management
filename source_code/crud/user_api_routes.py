@@ -13,7 +13,7 @@ from source_code.crud.user_crud_operations import user_crud
 from source_code.models.models import UserDtl, UserDtlInput
 from source_code.utils import auth_utils
 
-router = APIRouter(prefix="/users", tags=["Users"])
+router = APIRouter(prefix="/api/users", tags=["Users"])
 
 # Replace with your real CRUD and model imports
 # from source_code.crud.user_crud_operations import user_crud

@@ -27,18 +27,29 @@ class TransactionCRUD(BaseCRUD[TransactionDtl]):
             return rev[u]
         raise ValueError("Invalid transaction_type; expected one of: " + ", ".join(list(TRANSACTION_TYPES.keys())))
 
-    def list_full(self) -> List[TransactionFullView]:
-        rows = pg_db_conn_manager.fetch_data(
-            "SELECT * FROM v_transaction_full ORDER BY transaction_id"
-        )
-        return [TransactionFullView(**row) for row in rows]
-
     # Bulk save JSON array
     def save_many(self, items: List[TransactionDtlInput]) -> List[TransactionDtl]:
         results: List[TransactionDtl] = []
         for it in items:
             results.append(self.save(it))
         return results
+
+    def list_full(self) -> List[TransactionFullView]:
+        rows = pg_db_conn_manager.fetch_data(
+            "SELECT * FROM v_transaction_full ORDER BY transaction_id"
+        )
+        return [TransactionFullView(**row) for row in rows]
+
+    def get_transaction_by_id(self, transaction_id) -> TransactionFullView:
+        params = (transaction_id,)
+        rows = pg_db_conn_manager.fetch_data(
+            "SELECT * FROM v_transaction_full "
+            "where transaction_id = %s "
+            "ORDER BY transaction_id", params
+        )
+        if not rows:
+            raise KeyError("Transaction not found")
+        return TransactionFullView(**rows[0])
 
     def list_all(self) -> List[TransactionDtl]:
         rows = pg_db_conn_manager.fetch_data(

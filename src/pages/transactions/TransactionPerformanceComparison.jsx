@@ -1,13 +1,21 @@
 import React from "react";
 import { api } from "../../api/client.js";
 
+// Helper function to format numbers with commas and 2 decimal places
+function formatNumber(value) {
+  if (value == null || value === "" || isNaN(value)) return "-";
+  const num = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(num)) return String(value);
+  return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export default function TransactionPerformanceComparison() {
   const [pairs, setPairs] = React.useState([]);
   const [selectedPair, setSelectedPair] = React.useState("");
   const [fromDate, setFromDate] = React.useState(() => {
-    // Default to 30 days ago
+    // Default to 1 year ago
     const date = new Date();
-    date.setDate(date.getDate() - 30);
+    date.setDate(date.getDate() - 365);
     return date.toISOString().split('T')[0];
   });
   const [toDate, setToDate] = React.useState(() => {
@@ -19,6 +27,7 @@ export default function TransactionPerformanceComparison() {
   const [loading, setLoading] = React.useState(true);
   const [chartLoading, setChartLoading] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [abortController, setAbortController] = React.useState(null);
 
   // Load linked transaction pairs on component mount
   React.useEffect(() => {
@@ -41,35 +50,105 @@ export default function TransactionPerformanceComparison() {
     return () => (alive = false);
   }, []);
 
-  // Load performance data when selection changes
-  React.useEffect(() => {
+  // Stop current loading operation
+  const stopLoading = React.useCallback(() => {
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+      setChartLoading(false);
+    }
+  }, [abortController]);
+
+  // Performance data loading function with abort support
+  const loadPerformanceData = React.useCallback(async (autoLoad = false) => {
     if (!selectedPair || !fromDate || !toDate) return;
     
-    let alive = true;
-    (async () => {
-      setChartLoading(true);
-      try {
-        const response = await api.getPerformanceComparison(selectedPair, fromDate, toDate);
-        if (alive) {
-          setPerformanceData(response);
-          setError("");
-        }
-      } catch (e) {
-        if (alive) setError("Failed to load performance data.");
-      } finally {
-        if (alive) setChartLoading(false);
+    // Cancel any existing request
+    if (abortController) {
+      abortController.abort();
+    }
+    
+    const controller = new AbortController();
+    setAbortController(controller);
+    setChartLoading(true);
+    setError("");
+    
+    try {
+      const response = await api.getPerformanceComparison(selectedPair, fromDate, toDate, {
+        signal: controller.signal
+      });
+      if (!controller.signal.aborted) {
+        setPerformanceData(response);
+        setError("");
       }
-    })();
-    return () => (alive = false);
-  }, [selectedPair, fromDate, toDate]);
+    } catch (e) {
+      if (!controller.signal.aborted) {
+        setError("Failed to load performance data.");
+      }
+    } finally {
+      if (!controller.signal.aborted) {
+        setChartLoading(false);
+        setAbortController(null);
+      }
+    }
+  }, [selectedPair, fromDate, toDate, abortController]);
+
+  // Date range helper functions
+  const getDateRange = React.useCallback((period) => {
+    const today = new Date(2025, 9, 10); // October 10, 2025 (month is 0-indexed)
+    let fromDate;
+    
+    switch (period) {
+      case '1d':
+        fromDate = new Date(today);
+        fromDate.setDate(today.getDate() - 1);
+        break;
+      case '1w':
+        fromDate = new Date(today);
+        fromDate.setDate(today.getDate() - 7);
+        break;
+      case '1m':
+        fromDate = new Date(today);
+        fromDate.setMonth(today.getMonth() - 1);
+        break;
+      case '6m':
+        fromDate = new Date(today);
+        fromDate.setMonth(today.getMonth() - 6);
+        break;
+      case '1y':
+        fromDate = new Date(today);
+        fromDate.setFullYear(today.getFullYear() - 1);
+        break;
+      case 'ytd':
+        fromDate = new Date(today.getFullYear(), 0, 1); // January 1st of current year
+        break;
+      case '5y':
+        fromDate = new Date(today);
+        fromDate.setFullYear(today.getFullYear() - 5);
+        break;
+      case 'all':
+        fromDate = new Date(2000, 0, 1); // Far back date to get all available data
+        break;
+      default:
+        return;
+    }
+    
+    setFromDate(fromDate.toISOString().split('T')[0]);
+    setToDate(today.toISOString().split('T')[0]);
+    
+    // Auto-refresh with new date range
+    if (selectedPair) {
+      loadPerformanceData(false);
+    }
+  }, [selectedPair, loadPerformanceData]);
 
   if (loading) return <div>Loading transaction pairs...</div>;
   if (error && !pairs.length) return <div style={{ color: "#b91c1c" }}>{error}</div>;
 
   return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <h1 style={{ marginTop: 0, marginBottom: 0, flex: 1 }}>Transaction Performance Comparison</h1>
+    <div style={{ height: "100vh", overflow: "auto", padding: "16px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
+        <h1 style={{ margin: 0, flex: 1, fontSize: 24 }}>Transaction Performance Comparison</h1>
       </div>
 
       {pairs.length === 0 ? (
@@ -81,17 +160,17 @@ export default function TransactionPerformanceComparison() {
         <>
           {/* Controls */}
           <div style={{ background: "white", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", padding: 16, marginTop: 12 }}>
-            <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
               <label style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 200 }}>
                 <span>Transaction Pair</span>
                 <select
                   value={selectedPair}
                   onChange={(e) => setSelectedPair(e.target.value)}
-                  style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
+                  style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1", height: 40 }}
                 >
                   {pairs.map((pair) => (
                     <option key={pair.pair_id} value={pair.pair_id}>
-                      {pair.original.security_ticker} vs {pair.duplicate.security_ticker} (${pair.original.total_inv_amt})
+                      {pair.original.security_ticker} - {pair.original.security_name} vs {pair.duplicate.security_ticker} - {pair.duplicate.security_name} (${pair.original.total_inv_amt})
                     </option>
                   ))}
                 </select>
@@ -103,7 +182,7 @@ export default function TransactionPerformanceComparison() {
                   type="date"
                   value={fromDate}
                   onChange={(e) => setFromDate(e.target.value)}
-                  style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
+                  style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1", height: 40, boxSizing: "border-box" }}
                 />
               </label>
 
@@ -113,49 +192,147 @@ export default function TransactionPerformanceComparison() {
                   type="date"
                   value={toDate}
                   onChange={(e) => setToDate(e.target.value)}
-                  style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
+                  style={{ padding: 8, borderRadius: 6, border: "1px solid #cbd5e1", height: 40, boxSizing: "border-box" }}
                 />
               </label>
+
+              {chartLoading ? (
+                <button
+                  type="button"
+                  onClick={stopLoading}
+                  style={{ 
+                    background: "#ef4444", 
+                    color: "white", 
+                    padding: "8px 16px", 
+                    borderRadius: 8, 
+                    border: "none", 
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    height: 40
+                  }}
+                >
+                  Stop Loading
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => loadPerformanceData(false)}
+                  disabled={!selectedPair || !fromDate || !toDate}
+                  style={{ 
+                    background: (!selectedPair || !fromDate || !toDate) ? "#94a3b8" : "#10b981", 
+                    color: "white", 
+                    padding: "8px 16px", 
+                    borderRadius: 8, 
+                    border: "none", 
+                    cursor: (!selectedPair || !fromDate || !toDate) ? "not-allowed" : "pointer",
+                    fontWeight: 600,
+                    height: 40
+                  }}
+                >
+                  Refresh
+                </button>
+              )}
+
+              {/* Date Range Buttons - moved to same line */}
+              {[
+                { label: '1D', value: '1d' },
+                { label: '1W', value: '1w' },
+                { label: '1M', value: '1m' },
+                { label: '6M', value: '6m' },
+                { label: '1Y', value: '1y' },
+                { label: 'YTD', value: 'ytd' },
+                { label: '5Y', value: '5y' },
+                { label: 'All', value: 'all' }
+              ].map((range) => (
+                <button
+                  key={range.value}
+                  type="button"
+                  onClick={() => getDateRange(range.value)}
+                  disabled={!selectedPair || chartLoading}
+                  style={{
+                    background: (!selectedPair || chartLoading) ? "#e2e8f0" : "#f1f5f9",
+                    color: (!selectedPair || chartLoading) ? "#94a3b8" : "#475569",
+                    border: "1px solid #cbd5e1",
+                    padding: "6px 12px",
+                    borderRadius: 6,
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    cursor: (!selectedPair || chartLoading) ? "not-allowed" : "pointer",
+                    transition: "all 0.2s ease",
+                    height: 40,
+                    boxSizing: "border-box"
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!(!selectedPair || chartLoading)) {
+                      e.target.style.background = "#e2e8f0";
+                      e.target.style.borderColor = "#94a3b8";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!(!selectedPair || chartLoading)) {
+                      e.target.style.background = "#f1f5f9";
+                      e.target.style.borderColor = "#cbd5e1";
+                    }
+                  }}
+                >
+                  {range.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Performance Summary */}
-          {performanceData && (() => {
-            // Calculate first-to-last performance for both investments
-            const originalData = performanceData.performance_data.original || [];
-            const duplicateData = performanceData.performance_data.duplicate || [];
-            
-            const originalFirstToLast = originalData.length > 0 ? 
-              (originalData[originalData.length - 1].performance - originalData[0].performance) : 0;
-            const duplicateFirstToLast = duplicateData.length > 0 ? 
-              (duplicateData[duplicateData.length - 1].performance - duplicateData[0].performance) : 0;
-            
-            return (
-              <div style={{ background: "white", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", padding: 16, marginTop: 12 }}>
-                <h3 style={{ marginTop: 0 }}>Performance Summary</h3>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                  <div style={{ padding: 12, background: "#f8fafc", borderRadius: 8 }}>
-                    <h4 style={{ margin: "0 0 8px 0" }}>Original Investment</h4>
-                    <p><strong>Security:</strong> {performanceData.pair_info.original.security_ticker}</p>
-                    <p><strong>Investment:</strong> ${performanceData.pair_info.original.total_inv_amt}</p>
-                    <p><strong>Initial Price:</strong> ${performanceData.pair_info.original.initial_price?.toFixed(2)}</p>
-                    <p><strong>Performance:</strong> <span style={{ color: originalFirstToLast >= 0 ? '#10b981' : '#ef4444' }}>
-                      {originalFirstToLast >= 0 ? '+' : ''}{originalFirstToLast.toFixed(2)}%
-                    </span></p>
+          {/* Investment Performance Summary */}
+          {performanceData && (
+            <div style={{ background: "white", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", padding: 16, marginTop: 12 }}>
+              <h3 style={{ marginTop: 0 }}>Investment Performance Summary</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div style={{ padding: 12, background: "#f8fafc", borderRadius: 8 }}>
+                  <h4 style={{ margin: "0 0 8px 0" }}>Original Investment</h4>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", fontSize: "14px" }}>
+                    <p style={{ margin: "4px 0" }}><strong>Security:</strong> {performanceData.pair_info.original.security_ticker} - {performanceData.pair_info.original.security_name}</p>
+                    <p style={{ margin: "4px 0" }}><strong>Transaction Date:</strong> {new Date(performanceData.pair_info.original.transaction_date).toLocaleDateString()}</p>
+                    <p style={{ margin: "4px 0" }}><strong>Transaction Price:</strong> ${formatNumber(performanceData.pair_info.original.transaction_price)}</p>
+                    <p style={{ margin: "4px 0" }}><strong>Quantity:</strong> {formatNumber(performanceData.pair_info.original.quantity)}</p>
+                    <p style={{ margin: "4px 0" }}><strong>Investment Amount:</strong> ${formatNumber(performanceData.pair_info.original.total_inv_amt)}</p>
+                    <p style={{ margin: "4px 0" }}><strong>Total Fees Paid:</strong> ${formatNumber(performanceData.pair_info.original.total_fees_paid || 0)}</p>
+                    {performanceData.pair_info.original.current_value && (
+                      <>
+                        <p style={{ margin: "4px 0" }}><strong>Current Value:</strong> ${formatNumber(performanceData.pair_info.original.current_value)}</p>
+                        <p style={{ margin: "4px 0" }}><strong>Unrealized Gain/Loss:</strong> <span style={{ color: (performanceData.pair_info.original.unrealized_gain_loss || 0) >= 0 ? '#10b981' : '#ef4444' }}>
+                          ${(performanceData.pair_info.original.unrealized_gain_loss || 0) >= 0 ? '+' : ''}{formatNumber(Math.abs(performanceData.pair_info.original.unrealized_gain_loss || 0))}
+                        </span></p>
+                        <p style={{ margin: "4px 0" }}><strong>Unrealized Gain/Loss %:</strong> <span style={{ color: (performanceData.pair_info.original.unrealized_gain_loss_pct || 0) >= 0 ? '#10b981' : '#ef4444' }}>
+                          {(performanceData.pair_info.original.unrealized_gain_loss_pct || 0) >= 0 ? '+' : ''}{formatNumber(Math.abs(performanceData.pair_info.original.unrealized_gain_loss_pct || 0))}%
+                        </span></p>
+                      </>
+                    )}
                   </div>
-                  <div style={{ padding: 12, background: "#f8fafc", borderRadius: 8 }}>
-                    <h4 style={{ margin: "0 0 8px 0" }}>Comparison Investment</h4>
-                    <p><strong>Security:</strong> {performanceData.pair_info.duplicate.security_ticker}</p>
-                    <p><strong>Investment:</strong> ${performanceData.pair_info.duplicate.total_inv_amt}</p>
-                    <p><strong>Initial Price:</strong> ${performanceData.pair_info.duplicate.initial_price?.toFixed(2)}</p>
-                    <p><strong>Performance:</strong> <span style={{ color: duplicateFirstToLast >= 0 ? '#10b981' : '#ef4444' }}>
-                      {duplicateFirstToLast >= 0 ? '+' : ''}{duplicateFirstToLast.toFixed(2)}%
-                    </span></p>
+                </div>
+                <div style={{ padding: 12, background: "#f8fafc", borderRadius: 8 }}>
+                  <h4 style={{ margin: "0 0 8px 0" }}>Comparison Investment</h4>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", fontSize: "14px" }}>
+                    <p style={{ margin: "4px 0" }}><strong>Security:</strong> {performanceData.pair_info.duplicate.security_ticker} - {performanceData.pair_info.duplicate.security_name}</p>
+                    <p style={{ margin: "4px 0" }}><strong>Transaction Date:</strong> {new Date(performanceData.pair_info.duplicate.transaction_date).toLocaleDateString()}</p>
+                    <p style={{ margin: "4px 0" }}><strong>Transaction Price:</strong> ${formatNumber(performanceData.pair_info.duplicate.transaction_price)}</p>
+                    <p style={{ margin: "4px 0" }}><strong>Quantity:</strong> {formatNumber(performanceData.pair_info.duplicate.quantity)}</p>
+                    <p style={{ margin: "4px 0" }}><strong>Investment Amount:</strong> ${formatNumber(performanceData.pair_info.duplicate.total_inv_amt)}</p>
+                    <p style={{ margin: "4px 0" }}><strong>Total Fees Paid:</strong> ${formatNumber(performanceData.pair_info.duplicate.total_fees_paid || 0)}</p>
+                    {performanceData.pair_info.duplicate.current_value && (
+                      <>
+                        <p style={{ margin: "4px 0" }}><strong>Current Value:</strong> ${formatNumber(performanceData.pair_info.duplicate.current_value)}</p>
+                        <p style={{ margin: "4px 0" }}><strong>Unrealized Gain/Loss:</strong> <span style={{ color: (performanceData.pair_info.duplicate.unrealized_gain_loss || 0) >= 0 ? '#10b981' : '#ef4444' }}>
+                          ${(performanceData.pair_info.duplicate.unrealized_gain_loss || 0) >= 0 ? '+' : ''}{formatNumber(Math.abs(performanceData.pair_info.duplicate.unrealized_gain_loss || 0))}
+                        </span></p>
+                        <p style={{ margin: "4px 0" }}><strong>Unrealized Gain/Loss %:</strong> <span style={{ color: (performanceData.pair_info.duplicate.unrealized_gain_loss_pct || 0) >= 0 ? '#10b981' : '#ef4444' }}>
+                          {(performanceData.pair_info.duplicate.unrealized_gain_loss_pct || 0) >= 0 ? '+' : ''}{formatNumber(Math.abs(performanceData.pair_info.duplicate.unrealized_gain_loss_pct || 0))}%
+                        </span></p>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
-            );
-          })()}
+            </div>
+          )}
 
           {/* Chart Area */}
           <div style={{ background: "white", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", padding: 16, marginTop: 12, minHeight: 400 }}>
@@ -164,7 +341,7 @@ export default function TransactionPerformanceComparison() {
                 Loading performance data...
               </div>
             ) : performanceData ? (
-              <PerformanceChart data={performanceData} />
+              <PerformanceChart data={performanceData} fromDate={fromDate} toDate={toDate} />
             ) : (
               <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 300, color: "#64748b" }}>
                 Select a transaction pair and date range to view performance comparison
@@ -179,7 +356,7 @@ export default function TransactionPerformanceComparison() {
 }
 
 // Simple line chart component using HTML5 Canvas
-function PerformanceChart({ data }) {
+function PerformanceChart({ data, fromDate, toDate }) {
   const canvasRef = React.useRef(null);
   const [hoveredPoint, setHoveredPoint] = React.useState(null);
 
@@ -228,10 +405,9 @@ function PerformanceChart({ data }) {
     const yMin = minPerformance - performancePadding;
     const yMax = maxPerformance + performancePadding;
 
-    // Get date range
-    const allDates = allData.map(d => new Date(d.date));
-    const minDate = new Date(Math.min(...allDates));
-    const maxDate = new Date(Math.max(...allDates));
+    // Get date range - use selected date range instead of data points for proper X-axis
+    const minDate = new Date(fromDate);
+    const maxDate = new Date(toDate);
 
     // Helper functions
     const getX = (date) => padding.left + ((new Date(date) - minDate) / (maxDate - minDate)) * chartWidth;
@@ -341,7 +517,7 @@ function PerformanceChart({ data }) {
     ctx.fillStyle = "#64748b";
     ctx.font = "12px sans-serif";
     ctx.textAlign = "center";
-    const dateSteps = Math.min(5, Math.max(allDates.length, 1));
+    const dateSteps = Math.min(5, Math.max(allData.length, 1));
     for (let i = 0; i <= dateSteps; i++) {
       const date = new Date(minDate.getTime() + (maxDate - minDate) * (i / dateSteps));
       const x = getX(date);
@@ -367,10 +543,9 @@ function PerformanceChart({ data }) {
       return;
     }
 
-    const allData = [...(data.performance_data.original || []), ...(data.performance_data.duplicate || [])];
-    const allDates = allData.map(d => new Date(d.date));
-    const minDate = new Date(Math.min(...allDates));
-    const maxDate = new Date(Math.max(...allDates));
+    // Use selected date range for hover calculations
+    const minDate = new Date(fromDate);
+    const maxDate = new Date(toDate);
     const chartWidth = rect.width - padding.left - padding.right;
     
     const dateAtX = new Date(minDate.getTime() + ((x - padding.left) / chartWidth) * (maxDate - minDate));
@@ -409,17 +584,17 @@ function PerformanceChart({ data }) {
 
   return (
     <div style={{ position: "relative" }}>
-      <h3 style={{ marginTop: 0, marginBottom: 16, textAlign: "center" }}>Performance Comparison</h3>
+      <h3 style={{ marginTop: 0, marginBottom: 16, textAlign: "center" }}>Investment Performance Comparison</h3>
       
       {/* Legend */}
       <div style={{ display: "flex", justifyContent: "center", gap: 24, marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 16, height: 2, backgroundColor: "#3b82f6" }}></div>
-          <span>Original ({data.pair_info.original.security_ticker})</span>
+          <span>Original Investment ({data.pair_info.original.security_ticker})</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 16, height: 2, backgroundColor: "#10b981" }}></div>
-          <span>Comparison ({data.pair_info.duplicate.security_ticker})</span>
+          <span>Comparison Investment ({data.pair_info.duplicate.security_ticker})</span>
         </div>
       </div>
 
@@ -430,7 +605,7 @@ function PerformanceChart({ data }) {
         onMouseLeave={() => setHoveredPoint(null)}
       />
 
-      {/* Tooltip */}
+      {/* Investment Performance Tooltip */}
       {hoveredPoint && (
         <div
           style={{
@@ -449,16 +624,32 @@ function PerformanceChart({ data }) {
         >
           {hoveredPoint.original && (
             <div style={{ color: "#3b82f6", marginBottom: 4 }}>
-              <strong>{data.pair_info.original.security_ticker}:</strong> {hoveredPoint.original.performance.toFixed(2)}%
+              <strong>{data.pair_info.original.security_ticker} Investment:</strong>
               <br />
-              <span style={{ color: "#64748b" }}>Price: ${hoveredPoint.original.price?.toFixed(2)}</span>
+              <span>Price: ${formatNumber(hoveredPoint.original.price)}</span>
+              <br />
+              <span>Performance: {hoveredPoint.original.performance >= 0 ? '+' : ''}{formatNumber(Math.abs(hoveredPoint.original.performance))}%</span>
+              <br />
+              <span style={{ color: "#64748b" }}>Current Value: ${formatNumber(hoveredPoint.original.current_value)}</span>
+              <br />
+              <span style={{ color: hoveredPoint.original.unrealized_gain_loss >= 0 ? '#10b981' : '#ef4444' }}>
+                Gain/Loss: ${hoveredPoint.original.unrealized_gain_loss >= 0 ? '+' : ''}{formatNumber(Math.abs(hoveredPoint.original.unrealized_gain_loss || 0))}
+              </span>
             </div>
           )}
           {hoveredPoint.duplicate && (
             <div style={{ color: "#10b981" }}>
-              <strong>{data.pair_info.duplicate.security_ticker}:</strong> {hoveredPoint.duplicate.performance.toFixed(2)}%
+              <strong>{data.pair_info.duplicate.security_ticker} Investment:</strong>
               <br />
-              <span style={{ color: "#64748b" }}>Price: ${hoveredPoint.duplicate.price?.toFixed(2)}</span>
+              <span>Price: ${formatNumber(hoveredPoint.duplicate.price)}</span>
+              <br />
+              <span>Performance: {hoveredPoint.duplicate.performance >= 0 ? '+' : ''}{formatNumber(Math.abs(hoveredPoint.duplicate.performance))}%</span>
+              <br />
+              <span style={{ color: "#64748b" }}>Current Value: ${formatNumber(hoveredPoint.duplicate.current_value)}</span>
+              <br />
+              <span style={{ color: hoveredPoint.duplicate.unrealized_gain_loss >= 0 ? '#10b981' : '#ef4444' }}>
+                Gain/Loss: ${hoveredPoint.duplicate.unrealized_gain_loss >= 0 ? '+' : ''}{formatNumber(Math.abs(hoveredPoint.duplicate.unrealized_gain_loss || 0))}
+              </span>
             </div>
           )}
           {hoveredPoint.original && (

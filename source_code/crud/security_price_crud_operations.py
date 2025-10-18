@@ -167,6 +167,69 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
             result.append(self.save(item))
         return result
 
+    # Efficient batch upsert for multiple price records
+    def batch_upsert(self, items: List[SecurityPriceDtlInput]) -> dict:
+        """
+        Efficiently batch upsert security prices using single SQL operation.
+        Uses ON CONFLICT on natural key (security_id, price_source_id, price_date) 
+        to prevent duplicate price records.
+        Returns summary of operations performed.
+        """
+        if not items:
+            return {"inserted": 0, "updated": 0, "total": 0}
+
+        now = date_utils.get_current_date_time()
+        values = []
+        
+        for item in items:
+            price_id = date_utils.get_timestamp_with_microseconds()
+            values.append((
+                price_id,
+                item.security_id,
+                item.price_source_id,
+                item.price_date,
+                item.price,
+                item.market_cap or 0.0,
+                item.addl_notes or "",
+                item.price_currency or "USD",
+                now,
+                now
+            ))
+
+        # Use PostgreSQL UPSERT with ON CONFLICT on natural key to prevent duplicates
+        upsert_sql = """
+        INSERT INTO security_price_dtl (
+            security_price_id, security_id, price_source_id, price_date, 
+            price, market_cap, addl_notes, price_currency, created_ts, last_updated_ts
+        ) VALUES %s
+        ON CONFLICT (security_id, price_source_id, price_date) DO UPDATE SET
+            price = EXCLUDED.price,
+            market_cap = EXCLUDED.market_cap,
+            addl_notes = EXCLUDED.addl_notes,
+            price_currency = EXCLUDED.price_currency,
+            last_updated_ts = EXCLUDED.last_updated_ts
+        """
+        
+        # Execute batch upsert using execute_values for better performance
+        import psycopg2.extras
+        try:
+            with pg_db_conn_manager.get_db_connection() as conn:
+                with conn.cursor() as cursor:
+                    psycopg2.extras.execute_values(
+                        cursor, upsert_sql, values, template=None, page_size=100
+                    )
+                    affected_rows = cursor.rowcount
+                    conn.commit()
+                    
+            return {
+                "inserted": affected_rows,  # PostgreSQL doesn't distinguish insert vs update in upsert
+                "updated": 0,  # Would need additional query to get exact counts
+                "total": len(items)
+            }
+            
+        except Exception as e:
+            raise RuntimeError(f"Batch upsert failed: {str(e)}")
+
     def get_security(self, pk: int) -> Optional[SecurityPriceDtl]:
         rows = pg_db_conn_manager.fetch_data(
             "SELECT security_price_id, security_id, price_source_id, price_date, price, market_cap, addl_notes, price_currency, created_ts, last_updated_ts "

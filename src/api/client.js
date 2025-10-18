@@ -6,7 +6,14 @@ function getAuthHeader() {
 }
 
 async function request(path, options = {}) {
-  const url = `${BASE_URL}${path.startsWith("/") ? "" : "/"}${path}`;
+  // Auto-prefix /api for relative paths not already under /api
+  let p = path || "";
+  if (!/^https?:\/\//i.test(p)) {
+    if (!p.startsWith("/api")) {
+      p = `/api${p.startsWith("/") ? "" : "/"}${p}`;
+    }
+  }
+  const url = `${BASE_URL}${p.startsWith("/") ? "" : "/"}${p}`;
   const res = await fetch(url, {
     headers: {
       "Content-Type": "application/json",
@@ -83,7 +90,15 @@ export const api = {
   updateSecurityPrice: (id, payload) => request(`/security-prices/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteSecurityPrice: (id) => request(`/security-prices/${id}`, { method: "DELETE" }),
   // Admin maintenance
-  downloadPrices: (date) => request(`/security-prices/download`, { method: "POST", body: JSON.stringify({ date }) }),
+  downloadPrices: (fromDate, toDate, tickers) => {
+    const payload = {};
+    if (fromDate) payload.from_date = fromDate;
+    if (toDate) payload.to_date = toDate;
+    if (tickers && Array.isArray(tickers) && tickers.length > 0) {
+      payload.tickers = tickers.filter(t => t && t.trim()).map(t => t.trim());
+    }
+    return request(`/security-prices/download`, { method: "POST", body: JSON.stringify(payload) });
+  },
 
   // Transactions
   listTransactions: () => request("/transactions", { method: "GET" }),
@@ -97,10 +112,10 @@ export const api = {
   recalculateTransactionFees: () => request("/transactions/recalculate-fees", { method: "POST" }),
   // Performance comparison
   getLinkedTransactionPairs: () => request("/transactions/linked-pairs", { method: "GET" }),
-  getPerformanceComparison: (pairId, fromDate, toDate) => {
+  getPerformanceComparison: (pairId, fromDate, toDate, options = {}) => {
     const params = new URLSearchParams();
     params.append('from_date', fromDate);
     params.append('to_date', toDate);
-    return request(`/transactions/performance-comparison/${pairId}?${params.toString()}`, { method: "GET" });
+    return request(`/transactions/performance-comparison/${pairId}?${params.toString()}`, { method: "GET", ...options });
   },
 };

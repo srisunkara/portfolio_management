@@ -8,7 +8,7 @@ from fastapi.responses import Response
 from source_code.crud.security_crud_operations import security_crud
 from source_code.models.models import SecurityDtl, SecurityDtlInput
 
-router = APIRouter(prefix="/securities", tags=["Securities"])
+router = APIRouter(prefix="/api/securities", tags=["Securities"])
 
 
 @router.post("/", response_model=SecurityDtl)
@@ -70,6 +70,11 @@ def save_securities_bulk_csv_string(body: str = Body(..., media_type="text/plain
         skipped_duplicate_in_request = 0
         skipped_invalid = 0
         errors = 0
+        
+        # Track ticker lists for summary
+        added_tickers = []
+        skipped_tickers = []
+        failed_tickers = []
 
         for row in reader:
             received += 1
@@ -82,14 +87,14 @@ def save_securities_bulk_csv_string(body: str = Body(..., media_type="text/plain
 
             if not ticker or not name or not company_name:
                 skipped_invalid += 1
+                if ticker:  # Only add to skipped list if we have a ticker
+                    skipped_tickers.append(ticker)
                 continue
 
             key = ticker.lower()
-            if key in existing_tickers:
-                skipped_existing += 1
-                continue
             if key in seen_in_request:
                 skipped_duplicate_in_request += 1
+                skipped_tickers.append(ticker)
                 continue
 
             attempted += 1
@@ -101,12 +106,20 @@ def save_securities_bulk_csv_string(body: str = Body(..., media_type="text/plain
                     security_currency=currency,
                     is_private=is_private,
                 )
-                security_crud.save(norm)
-                added += 1
+                # Use upsert logic to update existing securities or create new ones
+                if key in existing_tickers:
+                    security_crud.update_by_ticker(ticker, norm)
+                    skipped_existing += 1
+                    skipped_tickers.append(ticker)
+                else:
+                    security_crud.save(norm)
+                    existing_tickers.add(key)
+                    added += 1
+                    added_tickers.append(ticker)
                 seen_in_request.add(key)
-                existing_tickers.add(key)
             except Exception:
                 errors += 1
+                failed_tickers.append(ticker)
                 # do not add to seen/existing; allow subsequent valid rows with same ticker to also be attempted/skipped appropriately
                 continue
 
@@ -114,11 +127,25 @@ def save_securities_bulk_csv_string(body: str = Body(..., media_type="text/plain
             "status": "ok",
             "received": int(received),
             "attempted": int(attempted),
-            "added": int(added),
-            "skipped_existing": int(skipped_existing),
-            "skipped_duplicate_in_request": int(skipped_duplicate_in_request),
-            "skipped_invalid": int(skipped_invalid),
-            "errors": int(errors),
+            "added": {
+                "count": len(added_tickers),
+                "tickers": sorted(added_tickers)
+            },
+            "skipped": {
+                "count": len(skipped_tickers),
+                "tickers": sorted(skipped_tickers)
+            },
+            "failed": {
+                "count": len(failed_tickers),
+                "tickers": sorted(failed_tickers)
+            },
+            "legacy_counts": {
+                "added": int(added),
+                "skipped_existing": int(skipped_existing),
+                "skipped_duplicate_in_request": int(skipped_duplicate_in_request),
+                "skipped_invalid": int(skipped_invalid),
+                "errors": int(errors)
+            }
         }
     except HTTPException:
         raise
@@ -128,9 +155,9 @@ def save_securities_bulk_csv_string(body: str = Body(..., media_type="text/plain
 
 
 # Upload CSV and reuse the bulk save to persist
-# Expected headers (case-insensitive): ticker, name, company_name, [security_currency]
-@router.post("/bulk-csv", response_model=list[SecurityDtl])
-async def upload_securities_csv(file: UploadFile = File(...)):
+# Expected headers (case-insensitive): ticker, name, company_name, [security_currency], [is_private]
+@router.post("/bulk-csv")
+async def upload_securities_csv(file: UploadFile = File(...)) -> dict:
     if not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Please upload a CSV file")
 
@@ -150,10 +177,37 @@ async def upload_securities_csv(file: UploadFile = File(...)):
             missing = ", ".join(sorted(required - set(headers)))
             raise HTTPException(status_code=400, detail=f"Missing required CSV headers: {missing}")
 
-        items: list[SecurityDtlInput] = []
+        def parse_bool(v: str) -> bool:
+            if v is None:
+                return False
+            s = str(v).strip().lower()
+            return s in {"1", "true", "yes", "y"}
+
+        # Build existing ticker set (case-insensitive)
+        try:
+            existing_tickers = { (s.ticker or "").strip().lower() for s in security_crud.list_all() }
+        except Exception:
+            existing_tickers = set()
+
+        seen_in_request: set[str] = set()
+        received = 0
+        attempted = 0
+        added = 0
+        skipped_existing = 0
+        skipped_duplicate_in_request = 0
+        skipped_invalid = 0
+        errors = 0
+        
+        # Track ticker lists for summary
+        added_tickers = []
+        skipped_tickers = []
+        failed_tickers = []
+
         row_num = 1  # header is row 1, start counting data at 2 for clarity
         for row in reader:
             row_num += 1
+            received += 1
+            
             # Safely fetch with normalization
             def get_val(key: str) -> str:
                 return (row.get(key) or row.get(key.upper()) or row.get(key.title()) or "").strip()
@@ -162,25 +216,70 @@ async def upload_securities_csv(file: UploadFile = File(...)):
             name = get_val("name")
             company_name = get_val("company_name")
             currency = get_val("security_currency") or "USD"
+            is_private_val = row.get("is_private") or row.get("IS_PRIVATE") or row.get("Is_Private")
+            is_private = parse_bool(is_private_val)
 
             if not ticker or not name or not company_name:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Row {row_num}: 'ticker', 'name', and 'company_name' are required"
+                skipped_invalid += 1
+                if ticker:  # Only add to skipped list if we have a ticker
+                    skipped_tickers.append(ticker)
+                continue
+
+            key = ticker.lower()
+            if key in seen_in_request:
+                skipped_duplicate_in_request += 1
+                skipped_tickers.append(ticker)
+                continue
+
+            attempted += 1
+            try:
+                norm = SecurityDtlInput(
+                    ticker=ticker,
+                    name=name,
+                    company_name=company_name,
+                    security_currency=currency,
+                    is_private=is_private,
                 )
+                # Use upsert logic to update existing securities or create new ones
+                if key in existing_tickers:
+                    security_crud.update_by_ticker(ticker, norm)
+                    skipped_existing += 1
+                    skipped_tickers.append(ticker)
+                else:
+                    security_crud.save(norm)
+                    existing_tickers.add(key)
+                    added += 1
+                    added_tickers.append(ticker)
+                seen_in_request.add(key)
+            except Exception:
+                errors += 1
+                failed_tickers.append(ticker)
+                continue
 
-            items.append(SecurityDtlInput(
-                ticker=ticker,
-                name=name,
-                company_name=company_name,
-                security_currency=currency
-            ))
-
-        if not items:
-            return []
-
-        # Reuse bulk persistence
-        return security_crud.save_many(items)
+        return {
+            "status": "ok",
+            "received": int(received),
+            "attempted": int(attempted),
+            "added": {
+                "count": len(added_tickers),
+                "tickers": sorted(added_tickers)
+            },
+            "skipped": {
+                "count": len(skipped_tickers),
+                "tickers": sorted(skipped_tickers)
+            },
+            "failed": {
+                "count": len(failed_tickers),
+                "tickers": sorted(failed_tickers)
+            },
+            "legacy_counts": {
+                "added": int(added),
+                "skipped_existing": int(skipped_existing),
+                "skipped_duplicate_in_request": int(skipped_duplicate_in_request),
+                "skipped_invalid": int(skipped_invalid),
+                "errors": int(errors)
+            }
+        }
 
     except HTTPException:
         raise

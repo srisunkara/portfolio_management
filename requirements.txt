@@ -1,18 +1,27 @@
-pydantic
-# requirements.txt
+# Portfolio Management Application Dependencies
+# Web Framework
 fastapi
-uvicorn
+uvicorn[standard]
 python-multipart
-httpx
-pytest
-yfinance
 
-pydantic
-# requirements.txt
-fastapi
-uvicorn
-python-multipart
+# Database
+psycopg2-binary
+
+# Data Models and Validation
+pydantic[email]
+
+# HTTP Client
 httpx
-pytest
+
+# Financial Data
 yfinance
+pandas
+
+# Testing
+pytest
+
+# Web Automation (if needed)
 playwright
+
+# Additional dependencies that may be needed
+starlette

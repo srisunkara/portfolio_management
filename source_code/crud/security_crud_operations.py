@@ -123,5 +123,59 @@ class SecurityCRUD(BaseCRUD[SecurityDtl]):
         )
         return affected > 0
 
+    def update_by_ticker(self, ticker: str, item: SecurityDtlInput) -> SecurityDtl:
+        """Update a security by ticker (case-insensitive)"""
+        sql = """
+        UPDATE security_dtl
+        SET
+            name = %s,
+            company_name = %s,
+            security_currency = %s,
+            is_private = %s,
+            last_updated_ts = %s
+        WHERE LOWER(ticker) = LOWER(%s)
+        """
+        params = (
+            item.name, item.company_name, item.security_currency.upper(), 
+            item.is_private, date_utils.get_current_date_time(), ticker
+        )
+        affected = pg_db_conn_manager.execute_query(sql, params)
+        if affected == 0:
+            raise KeyError(f"Security with ticker '{ticker}' not found")
+        
+        # Get the updated security
+        rows = pg_db_conn_manager.fetch_data(
+            "SELECT security_id, ticker, name, company_name, security_currency, is_private, created_ts, last_updated_ts "
+            "FROM security_dtl WHERE LOWER(ticker) = LOWER(%s)",
+            (ticker,),
+        )
+        if not rows:
+            raise KeyError(f"Security with ticker '{ticker}' not found after update")
+        return SecurityDtl(**rows[0])
+
+    def save_many_with_upsert(self, items: List[SecurityDtlInput]) -> List[SecurityDtl]:
+        """Save multiple securities with upsert logic (update if ticker exists, create if not)"""
+        results: List[SecurityDtl] = []
+        
+        # Get existing tickers from database
+        rows = pg_db_conn_manager.fetch_data(
+            "SELECT LOWER(ticker) as ticker_lower FROM security_dtl"
+        )
+        existing_tickers = {row['ticker_lower'] for row in rows}
+        
+        for item in items:
+            ticker_lower = item.ticker.lower()
+            if ticker_lower in existing_tickers:
+                # Update existing security
+                updated_security = self.update_by_ticker(item.ticker, item)
+                results.append(updated_security)
+            else:
+                # Create new security
+                new_security = self.save(item)
+                results.append(new_security)
+                existing_tickers.add(ticker_lower)
+        
+        return results
+
 # Keep a singleton instance for importers (routes)
 security_crud = SecurityCRUD()

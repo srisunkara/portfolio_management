@@ -11,7 +11,7 @@ from source_code.crud.portfolio_crud_operations import portfolio_crud
 from source_code.models.models import PortfolioDtl, PortfolioDtlInput
 from source_code.utils import domain_utils
 
-router = APIRouter(prefix="/portfolios", tags=["Portfolios"])
+router = APIRouter(prefix="/api/portfolios", tags=["Portfolios"])
 
 
 @router.post("/", response_model=PortfolioDtl)

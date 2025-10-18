@@ -5,7 +5,7 @@ Test script to create a user via API and then test login
 import requests
 import json
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:8000/api"
 
 def create_test_user():
     """Create a test user via the API"""

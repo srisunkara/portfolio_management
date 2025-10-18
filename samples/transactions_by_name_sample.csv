@@ -1,0 +1,9 @@
+portfolio_name,security_ticker,external_platform_name,transaction_date,transaction_type,transaction_qty,transaction_price,transaction_fee,transaction_fee_percent,carry_fee,carry_fee_percent,management_fee,management_fee_percent,external_manager_fee,external_manager_fee_percent
+HCV Portfolio,ANTHROPIC,High Circle Ventures,2025-01-01,BUY,1.00,100.00,0.00,5.00,0.00,20.00,0.00,0.00,0.00,0.00
+Micro Ventures Portfolio,AAPL,Micro Ventures,2025-01-01,BUY,10.00,190.50,1.00,5.00,0.00,20.00,0.00,0.00,0.00,0.00
+Micro Ventures Portfolio,MSFT,Micro Ventures,2025-01-01,BUY,5.00,420.00,1.00,5.00,0.00,20.00,0.00,0.00,0.00,0.00
+Micro Ventures Portfolio,VOO,Micro Ventures,2025-01-01,BUY,2.00,500.00,0.00,5.00,0.00,20.00,0.00,0.00,0.00,0.00
+Goodfin Portfolio,SPACEX,Goodfin,2025-01-01,BUY,207.00,129.00,0.00,5.00,0.00,20.00,0.00,0.00,0.00,0.00
+Goodfin Portfolio,XAI,Goodfin,2025-01-01,BUY,44.00,539.00,0.00,5.00,0.00,20.00,0.00,0.00,0.00,0.00
+Goodfin Portfolio,PERPLEXITY,Goodfin,2025-01-01,BUY,8.00,350.00,0.00,5.00,0.00,20.00,0.00,0.00,0.00,0.00
+Goodfin Portfolio,PERPLEXITY,Goodfin,2025-01-01,BUY,37.00,695.44,0.00,5.00,0.00,0.00,0.00,0.00,0.00,0.00

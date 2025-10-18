@@ -1,0 +1,38 @@
+# Docker build context exclusions
+
+# Node / frontend
+node_modules
+npm-debug.log*
+yarn-error.log*
+.pnpm-store
+
+# Dist build artifacts (built in Node stage, not needed from context)
+dist
+
+# Python caches
+__pycache__
+*.py[cod]
+*.pyo
+*.pyd
+*.pytest_cache
+
+# Virtual envs
+.venv
+venv
+
+# VCS
+.git
+.gitignore
+
+# IDE / editor
+.idea
+.vscode
+
+# Local files
+.DS_Store
+server.log
+
+# Tests and samples (optional to reduce image size and build time)
+tests
+test_*.py
+samples

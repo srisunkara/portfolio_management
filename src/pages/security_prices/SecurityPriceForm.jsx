@@ -116,22 +116,13 @@ export default function SecurityPriceForm() {
       </div>
       <div style={{ background: "white", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflowY: "auto", overflowX: "auto", marginTop: 12, maxHeight: "calc(100vh - 160px)", padding: 16 }}>
       <form onSubmit={onSubmit} style={{ display: "grid", gap: 12, maxWidth: 640 }}>
-        <label style={{ display: "grid", gap: 6 }}>
-          <span>Security *</span>
-          <select
-            value={form.security_id}
-            onChange={(e) => onChange("security_id", e.target.value === "" ? "" : Number(e.target.value))}
-            required
-            style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
-          >
-            <option value="">Select a security…</option>
-            {securities.map((s) => (
-              <option key={s.security_id} value={s.security_id}>
-                {(s.ticker || s.name)} ({s.security_id}){s.name ? ` – ${s.name}` : ""}
-              </option>
-            ))}
-          </select>
-        </label>
+        <SearchableSecurityDropdown
+          label="Security *"
+          securities={securities}
+          value={form.security_id}
+          onChange={(securityId) => onChange("security_id", securityId)}
+          required={true}
+        />
 
         <label style={{ display: "grid", gap: 6 }}>
           <span>Price Source *</span>
@@ -220,6 +211,182 @@ export default function SecurityPriceForm() {
           </button>
         </div>
       </form>
+      </div>
+    </div>
+  );
+}
+
+// Searchable security dropdown component
+function SearchableSecurityDropdown({ label, securities, value, onChange, required = false }) {
+  const [searchTerm, setSearchTerm] = React.useState("");
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [selectedSecurity, setSelectedSecurity] = React.useState(null);
+  const dropdownRef = React.useRef(null);
+
+  // Find selected security when value changes
+  React.useEffect(() => {
+    const selected = securities.find(s => s.security_id === value);
+    setSelectedSecurity(selected || null);
+    if (selected) {
+      setSearchTerm(selected.ticker || selected.name || "");
+    } else {
+      setSearchTerm("");
+    }
+  }, [value, securities]);
+
+  // Filter securities based on search term
+  const filteredSecurities = React.useMemo(() => {
+    if (!searchTerm) return securities;
+    const term = searchTerm.toLowerCase();
+    return securities.filter(s => 
+      (s.ticker && s.ticker.toLowerCase().includes(term)) ||
+      (s.name && s.name.toLowerCase().includes(term)) ||
+      s.security_id.toString().includes(term)
+    );
+  }, [securities, searchTerm]);
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+        // Reset search term to selected security if no selection made
+        if (selectedSecurity) {
+          setSearchTerm(selectedSecurity.ticker || selectedSecurity.name || "");
+        } else {
+          setSearchTerm("");
+        }
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [selectedSecurity]);
+
+  const handleInputChange = (e) => {
+    setSearchTerm(e.target.value);
+    setIsOpen(true);
+  };
+
+  const handleInputFocus = () => {
+    setIsOpen(true);
+    setSearchTerm(""); // Clear search to show all options
+  };
+
+  const handleSecuritySelect = (security) => {
+    setSelectedSecurity(security);
+    setSearchTerm(security.ticker || security.name || "");
+    setIsOpen(false);
+    onChange(security.security_id);
+  };
+
+  const handleClear = () => {
+    setSelectedSecurity(null);
+    setSearchTerm("");
+    setIsOpen(false);
+    onChange("");
+  };
+
+  const displayText = selectedSecurity 
+    ? `${selectedSecurity.ticker || selectedSecurity.name} (${selectedSecurity.security_id})${selectedSecurity.name && selectedSecurity.ticker ? ` – ${selectedSecurity.name}` : ""}`
+    : "";
+
+  return (
+    <div ref={dropdownRef} style={{ position: "relative", display: "grid", gap: 6 }}>
+      <span>{label}</span>
+      <div style={{ position: "relative" }}>
+        <input
+          type="text"
+          value={isOpen ? searchTerm : displayText}
+          onChange={handleInputChange}
+          onFocus={handleInputFocus}
+          placeholder="Search for a security..."
+          required={required}
+          style={{ 
+            padding: 10, 
+            paddingRight: selectedSecurity ? 35 : 10,
+            borderRadius: 8, 
+            border: "1px solid #cbd5e1",
+            width: "100%",
+            boxSizing: "border-box"
+          }}
+        />
+        {selectedSecurity && (
+          <button
+            type="button"
+            onClick={handleClear}
+            style={{
+              position: "absolute",
+              right: 8,
+              top: "50%",
+              transform: "translateY(-50%)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 16,
+              color: "#64748b",
+              padding: 2
+            }}
+            title="Clear selection"
+          >
+            ×
+          </button>
+        )}
+        {isOpen && filteredSecurities.length > 0 && (
+          <div style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            background: "white",
+            border: "1px solid #cbd5e1",
+            borderRadius: 8,
+            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+            maxHeight: 200,
+            overflowY: "auto",
+            zIndex: 1000
+          }}>
+            {filteredSecurities.map((security) => (
+              <div
+                key={security.security_id}
+                onClick={() => handleSecuritySelect(security)}
+                style={{
+                  padding: "8px 12px",
+                  cursor: "pointer",
+                  borderBottom: "1px solid #f1f5f9",
+                  backgroundColor: selectedSecurity?.security_id === security.security_id ? "#f1f5f9" : "white"
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = "#f8fafc"}
+                onMouseLeave={(e) => e.target.style.backgroundColor = selectedSecurity?.security_id === security.security_id ? "#f1f5f9" : "white"}
+              >
+                <div style={{ fontWeight: 500 }}>
+                  {security.ticker || security.name} ({security.security_id})
+                </div>
+                {security.name && security.ticker && (
+                  <div style={{ fontSize: "0.875rem", color: "#64748b" }}>
+                    {security.name}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {isOpen && filteredSecurities.length === 0 && searchTerm && (
+          <div style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            background: "white",
+            border: "1px solid #cbd5e1",
+            borderRadius: 8,
+            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+            padding: "8px 12px",
+            color: "#64748b",
+            zIndex: 1000
+          }}>
+            No securities found matching "{searchTerm}"
+          </div>
+        )}
       </div>
     </div>
   );

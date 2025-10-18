@@ -13,7 +13,7 @@ from source_code.crud.holding_crud_operations import holding_crud
 from source_code.models.models import HoldingDtl, HoldingDtlInput
 from source_code.utils import domain_utils
 
-router = APIRouter(prefix="/holdings", tags=["Holdings"])
+router = APIRouter(prefix="/api/holdings", tags=["Holdings"])
 
 
 @router.get("/", response_model=list[HoldingDtl])
