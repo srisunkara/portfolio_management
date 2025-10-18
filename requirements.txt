@@ -25,3 +25,4 @@ playwright
 
 # Additional dependencies that may be needed
 starlette
+python-dotenv

@@ -6,6 +6,34 @@ from fastapi.responses import FileResponse
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 import os
+import sys
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables based on program parameter "env"
+# Priority: CLI --env | --env=<val> > env var APP_ENV > default "test"
+def _get_cli_env(argv: list[str]) -> str | None:
+    try:
+        if "--env" in argv:
+            idx = argv.index("--env")
+            if idx + 1 < len(argv):
+                return argv[idx + 1]
+        for arg in argv:
+            if arg.startswith("--env="):
+                return arg.split("=", 1)[1]
+    except Exception:
+        return None
+    return None
+
+_SELECTED_ENV = _get_cli_env(sys.argv) or os.environ.get("APP_ENV") or "test"
+_ENV_FILE = f".env.{_SELECTED_ENV}"
+if not Path(_ENV_FILE).is_file():
+    # Fallback to test if selected file doesn't exist
+    _SELECTED_ENV = "test"
+    _ENV_FILE = ".env.test"
+
+# Load the environment file (does nothing if file missing)
+load_dotenv(dotenv_path=_ENV_FILE, override=False)
 
 from source_code.crud.auth_api_routes import router as auth_router
 from source_code.crud.holding_api_routes import router as holding_router
@@ -17,6 +45,11 @@ from source_code.crud.transaction_api_routes import router as transaction_router
 from source_code.crud.user_api_routes import router as user_router
 
 app = FastAPI(title="Portfolio Manager")
+
+# Display selected environment on server startup
+@app.on_event("startup")
+async def _show_env_on_startup():
+    print(f"[startup] RUNNING_ENV={os.getenv('RUNNING_ENV', '')} (selected env: {_SELECTED_ENV}, file: {_ENV_FILE})")
 
 # Enable gzip compression for responses (static and API)
 app.add_middleware(GZipMiddleware, minimum_size=500)
