@@ -7,11 +7,11 @@ import psycopg2
 from psycopg2 import pool
 
 # ❗ IMPORTANT: Replace these with your actual database credentials
-DB_HOST = os.getenv('POSTGRES_DB_HOST', 'localhost')
-DB_NAME = os.getenv('POSTGRES_DB_NAME', 'investment_db')
-DB_USER = os.getenv('POSTGRES_DB_USER', 'postgres')
+DB_HOST = os.getenv('POSTGRES_DB_HOST')
+DB_NAME = os.getenv('POSTGRES_DB_NAME')
+DB_USER = os.getenv('POSTGRES_DB_USER')
 DB_PASSWORD = os.getenv('POSTGRES_DB_PASS')
-DB_PORT = os.getenv('POSTGRES_DB_PORT', '5432')
+DB_PORT = os.getenv('POSTGRES_DB_PORT')
 
 # Connection pool configuration
 MIN_CONN = int(os.getenv('POSTGRES_DB_MIN_CONN', '2'))

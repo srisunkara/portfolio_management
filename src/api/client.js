@@ -1,4 +1,16 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const _envBase = (import.meta.env.VITE_API_BASE_URL || "").trim();
+let BASE_URL;
+if (_envBase) {
+  // Explicit override provided at build time (e.g., via .env or Docker ARG)
+  BASE_URL = _envBase;
+} else if (typeof window !== "undefined") {
+  // In browser: use same-origin in production (served by FastAPI),
+  // and localhost:8000 during Vite dev for local testing.
+  BASE_URL = import.meta.env && import.meta.env.DEV ? "http://localhost:8000" : window.location.origin;
+} else {
+  // Non-browser contexts (tests/SSR) default to local backend
+  BASE_URL = "http://localhost:8000";
+}
 
 function getAuthHeader() {
   const token = localStorage.getItem("access_token");
