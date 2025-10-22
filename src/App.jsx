@@ -33,6 +33,7 @@ import TradingPlatformDelete from "./pages/external_platforms/ExternalPlatformDe
 import SecurityPricesList from "./pages/security_prices/SecurityPricesList.jsx";
 import SecurityPriceForm from "./pages/security_prices/SecurityPriceForm.jsx";
 import SecurityPriceDelete from "./pages/security_prices/SecurityPriceDelete.jsx";
+import SecurityPriceChange from "./pages/security_prices/SecurityPriceChange.jsx";
 import PortfolioAdminDownloadPrices from "./pages/admin/PortfolioAdminDownloadPrices.jsx";
 
 export default function App() {
@@ -89,6 +90,7 @@ export default function App() {
 
           {/* Security Prices */}
           <Route path="/security-prices" element={<ProtectedRoute><SecurityPricesList /></ProtectedRoute>} />
+          <Route path="/security-prices/price-change" element={<ProtectedRoute><SecurityPriceChange /></ProtectedRoute>} />
           <Route path="/security-prices/new" element={<ProtectedRoute><SecurityPriceForm /></ProtectedRoute>} />
           <Route path="/security-prices/:id/edit" element={<ProtectedRoute><SecurityPriceForm /></ProtectedRoute>} />
           <Route path="/security-prices/:id/delete" element={<ProtectedRoute><SecurityPriceDelete /></ProtectedRoute>} />

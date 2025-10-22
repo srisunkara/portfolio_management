@@ -49,6 +49,7 @@ export default function TopBar() {
 
         <Dropdown label="Security Prices">
           <MenuLink to="/security-prices">List</MenuLink>
+          <MenuLink to="/security-prices/price-change">Price Change</MenuLink>
           <MenuLink to="/security-prices/new">Add</MenuLink>
         </Dropdown>
 
