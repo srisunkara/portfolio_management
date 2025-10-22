@@ -48,6 +48,9 @@ def _get_row_val(row: Dict[str, str], *keys: str) -> str:
 
 
 def _parse_date(s: str) -> _date | None:
+    if isinstance(s, _date):
+        return s
+
     s = (s or "").strip()
     if not s:
         return None
@@ -71,6 +74,9 @@ def _parse_date(s: str) -> _date | None:
 
 
 def _parse_float(s: str) -> float | None:
+    if isinstance(s, float):
+        return s
+
     s = (s or "").strip()
     if not s or s.lower() in {"nan", "na", "null", "none"}:
         return None
@@ -99,9 +105,32 @@ def load_security_prices_from_file(
     addl_notes: str | None = "CSV Loader",
     include_private: bool = False,
 ) -> Dict[str, Any]:
+    # build a list of dicts
+    rows: List[Dict[str, str]] = []
+    with open(file_path, "r", newline="", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        if not reader.fieldnames:
+            return {
+                "read": 0,
+                "prepared": 0,
+                "total": 0,
+                "inserted": 0,
+            }
+        for row in reader:
+            rows.append(row)
+
+    return rows
+
+
+def load_security_prices_from_list_of_dicts(
+    data_list: List[Dict[str, str]],
+    price_source_id: int = DEFAULT_PRICE_SOURCE_ID,
+    default_currency: str = "USD",
+    addl_notes: str | None = "CSV Loader",
+    include_private: bool = False,
+) -> Dict[str, Any]:
     """
     Load security prices from CSV at file_path and upsert into security_price_dtl.
-
     Returns a summary dict with counts and samples.
     """
     ticker_map = _load_ticker_map(include_private=include_private)
@@ -114,67 +143,54 @@ def load_security_prices_from_file(
     inputs_by_key: Dict[tuple, SecurityPriceDtlInput] = {}
 
     # Read CSV with DictReader to support header names
-    with open(file_path, "r", newline="", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        if not reader.fieldnames:
-            return {
-                "read": 0,
-                "prepared": 0,
-                "total": 0,
-                "inserted": 0,
-                "updated": 0,
-                "skipped_unknown_ticker": [],
-                "skipped_bad_data": ["Missing headers"],
-            }
+    for idx, row in enumerate(data_list, start=2):  # start=2 because header is line 1
+        total_rows += 1
+        dt_str = _get_row_val(row, "date", "price_date")
+        ticker = (_get_row_val(row, "ticker", "symbol") or "").upper().strip()
+        open_px = _parse_float(_get_row_val(row, "open", "open_px"))
+        high_px = _parse_float(_get_row_val(row, "high", "high_px"))
+        low_px = _parse_float(_get_row_val(row, "low", "low_px"))
+        close_px = _parse_float(_get_row_val(row, "close", "close_px"))
+        adj_close_px = _parse_float(_get_row_val(row, "adj_close", "adj close", "adj_close_px"))
+        volume = _parse_float(_get_row_val(row, "volume"))
 
-        for idx, row in enumerate(reader, start=2):  # start=2 because header is line 1
-            total_rows += 1
-            dt_str = _get_row_val(row, "date", "price_date")
-            ticker = (_get_row_val(row, "ticker", "symbol") or "").upper().strip()
-            open_px = _parse_float(_get_row_val(row, "open", "open_px"))
-            high_px = _parse_float(_get_row_val(row, "high", "high_px"))
-            low_px = _parse_float(_get_row_val(row, "low", "low_px"))
-            close_px = _parse_float(_get_row_val(row, "close", "close_px"))
-            adj_close_px = _parse_float(_get_row_val(row, "adj_close", "adj close", "adj_close_px"))
-            volume = _parse_float(_get_row_val(row, "volume"))
+        # if volume or adj close are not numbers, default to null
+        if volume is not None and not volume.is_integer():
+            volume = None
+        if adj_close_px is not None and not adj_close_px.is_integer():
+            adj_close_px = None
 
-            # if volume or adj close are not numbers, default to null
-            if volume is not None and not volume.is_integer():
-                volume = None
-            if adj_close_px is not None and not adj_close_px.is_integer():
-                adj_close_px = None
+        d = _parse_date(dt_str)
+        if not d or not ticker or close_px is None:
+            skipped_bad_data.append((idx, f"Missing/invalid required fields (date/ticker/close). Raw: date='{dt_str}', ticker='{ticker}'"))
+            continue
 
-            d = _parse_date(dt_str)
-            if not d or not ticker or close_px is None:
-                skipped_bad_data.append((idx, f"Missing/invalid required fields (date/ticker/close). Raw: date='{dt_str}', ticker='{ticker}'"))
-                continue
+        sec = ticker_map.get(ticker)
+        if not sec:
+            skipped_unknown_ticker.append(ticker)
+            continue
 
-            sec = ticker_map.get(ticker)
-            if not sec:
-                skipped_unknown_ticker.append(ticker)
-                continue
+        # Price currency: prefer security currency if available
+        price_currency = (getattr(sec, "security_currency", None) or default_currency).upper()
 
-            # Price currency: prefer security currency if available
-            price_currency = (getattr(sec, "security_currency", None) or default_currency).upper()
-
-            spi = SecurityPriceDtlInput(
-                security_id=sec.security_id,
-                price_source_id=price_source_id,
-                price_date=d,
-                price=close_px,
-                open_px=open_px,
-                close_px=close_px,
-                high_px=high_px,
-                low_px=low_px,
-                adj_close_px=adj_close_px,
-                volume=volume,
-                market_cap=0.0,
-                addl_notes=addl_notes,
-                price_currency=price_currency,
-            )
-            key = (sec.security_id, price_source_id, d)
-            inputs_by_key[key] = spi  # keep last occurrence
-            prepared += 1
+        spi = SecurityPriceDtlInput(
+            security_id=sec.security_id,
+            price_source_id=price_source_id,
+            price_date=d,
+            price=close_px,
+            open_px=open_px,
+            close_px=close_px,
+            high_px=high_px,
+            low_px=low_px,
+            adj_close_px=adj_close_px,
+            volume=volume,
+            market_cap=0.0,
+            addl_notes=addl_notes,
+            price_currency=price_currency,
+        )
+        key = (sec.security_id, price_source_id, d)
+        inputs_by_key[key] = spi  # keep last occurrence
+        prepared += 1
 
     price_inputs: List[SecurityPriceDtlInput] = list(inputs_by_key.values())
     if not price_inputs:

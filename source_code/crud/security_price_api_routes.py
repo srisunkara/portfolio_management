@@ -198,9 +198,13 @@ class DownloadPricesRequest(BaseModel):
     from_date: date | None = None
     to_date: date | None = None  
     tickers: list[str] | None = None
+    save_to_file: bool = False
+    delete_after_download: bool = False
+    incl_missing_securities_only: bool = False
+    price_source_id: int | None = None
 
-@router.post("/download")
-def download_prices(req: DownloadPricesRequest) -> dict:
+@router.post("/download-date-range")
+def download_date_range(req: DownloadPricesRequest) -> dict:
     """
     Download daily prices for securities (by ticker) for a date range from Yahoo Finance
     and store them in security_price_dtl. Uses a fixed price_source_id (Yahoo Finance).
@@ -224,22 +228,18 @@ def download_prices(req: DownloadPricesRequest) -> dict:
             from_date = today - timedelta(days=1)  # Previous day
     else:
         from_date = req.from_date
-    
-    # Get business days in the range
-    business_days = pd.bdate_range(start=from_date, end=to_date).date
-    
-    # Track tickers by outcome
-    added_tickers = set()
-    skipped_tickers = set()
-    failed_tickers = set()
 
     ticker_list = req.tickers or []
     # dict of securities based on Ticker to get the security_id
     security_data_list = []
     if req.tickers is None:
         # Get securities to process
-        print("Getting all public securities")
-        security_data_list = security_crud.list_all_public()
+        if req.incl_missing_securities_only:
+            print("Getting all public securities that do not have any price between the selected date range.")
+            security_data_list = security_crud.list_all_public_with_missing_prices(from_date, to_date)
+        else:
+            print("Getting all public securities")
+            security_data_list = security_crud.list_all_public()
     else:
         # get security data for all tickers in the list
         # Preserve current behavior: restrict to public securities when tickers are provided
@@ -248,249 +248,47 @@ def download_prices(req: DownloadPricesRequest) -> dict:
     print("No of securities: ", len(security_data_list))
     # get a unique list of tickers
     ticker_list_set = {s.ticker.upper().strip() for s in security_data_list if s.ticker}
-    # get dict of securities based on Ticker to get the security_id
-    security_dict = {s.ticker.upper().strip(): s.security_id for s in security_data_list if s.ticker}
-
     ticker_list = list(ticker_list_set)
 
     # get price history for the selected date range
     from_date_str = from_date.isoformat()
     to_date_str = to_date.isoformat()
-    data_list, cols_to_keep = get_historical_data_list(ticker_list, from_date_str, to_date_str)
     # data_list output will be a list of dictionaries with columns: ['Date', 'Ticker', 'Open', 'High', 'Low', 'Close', 'Volume', "Adj Close"]
+    data_list, cols_to_keep = get_historical_data_list(ticker_list, from_date_str, to_date_str)
     # build a list of SecurityPriceDtlInput
     # Prepare price input for batch processing
     price_inputs = []
     if data_list is None or len(data_list) == 0:
         return {"message": "No price data available for the selected date range"}
 
-    # write data_list as csv to a file with current timestamp as filename
-    filename = f"security_price_data_{from_date.isoformat()}_{to_date.isoformat()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    with open(filename, "w") as f:
-        writer = csv.writer(f)
-        writer.writerow(cols_to_keep)
-        for row in data_list:
-            # write data from each row, which is a dictionary to the csv file based on the header info
-            # (iterate over the cols list and write in the order of cols
-            writer.writerow([row[col] for col in cols_to_keep])
+    if req.save_to_file:
+        # write data_list as csv to a file with current timestamp as filename
+        filename = f"security_price_data_{from_date.isoformat()}_{to_date.isoformat()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        print(f">>> Saving data to file {filename}")
+        with open(filename, "w") as f:
+            writer = csv.writer(f)
+            writer.writerow(cols_to_keep)
+            for row in data_list:
+                # write data from each row, which is a dictionary to the csv file based on the header info
+                # (iterate over the cols list and write in the order of cols
+                writer.writerow([row[col] for col in cols_to_keep])
 
-    # for each_data in data_list:
-    #     ticker = each_data['Ticker']
-    #     if ticker not in ticker_list:
-    #         skipped_tickers.add(ticker)
-    #         continue
-    #     security_id = None
-    #     for sec in all_securities:
-    #         if sec.ticker.upper() == ticker:
-    #             security_id = sec.security_id
-    #             break
-    # spi = SecurityPriceDtlInput(
-    #     security_id=s.security_id,
-    #     price_source_id=YAHOO_SOURCE_ID,
-    #     price_date=target_date,
-    #     price=round(close_price, 4),
-    #     market_cap=0.0,
-    #     addl_notes="Yahoo",
-    #     price_currency=(s.security_currency or "USD").upper(),
-    # )
-    # price_inputs.append(spi)
+        # once downloaded, load prices to the database using the security_price_loader (similar to load_prices_from_file)
+        ret_data = security_price_loader.load_security_prices_from_file(filename)
 
-    # Download prices for each business day
-    # for target_date in business_days:
-    #     daily_result = download_prices_by_date_with_tickers(target_date, req.tickers)
-    #
-    #     # Extract tickers from daily result
-    #     if "added_tickers" in daily_result:
-    #         added_tickers.update(daily_result["added_tickers"])
-    #     if "skipped_tickers" in daily_result:
-    #         skipped_tickers.update(daily_result["skipped_tickers"])
-    #     if "failed_tickers" in daily_result:
-    #         failed_tickers.update(daily_result["failed_tickers"])
-    
-    # Return summary format with ticker lists
-    return {
-        "from_date": from_date.isoformat(),
-        "to_date": to_date.isoformat(),
-        "business_days": len(business_days),
-        "added": {
-            "count": len(added_tickers),
-            "tickers": sorted(list(added_tickers))
-        },
-        "skipped": {
-            "count": len(skipped_tickers),
-            "tickers": sorted(list(skipped_tickers))
-        },
-        "failed": {
-            "count": len(failed_tickers),
-            "tickers": sorted(list(failed_tickers))
-        }
-    }
-
-
-def download_prices_by_date_with_tickers(target_date: date, ticker_filter: list[str] | None = None) -> dict:
-    """
-    Download daily prices for securities (optionally filtered by tickers) for a given date from Yahoo Finance
-    and store them in security_price_dtl using efficient batch operations.
-    Uses a fixed price_source_id (Yahoo Finance).
-    Skips securities without a ticker or when the price is unavailable for the date.
-    """
-    # Get securities to process
-    all_securities = security_crud.list_all_public()
-    
-    if ticker_filter:
-        # Filter securities by ticker list
-        ticker_set = {t.upper().strip() for t in ticker_filter if t.strip()}
-        securities = [s for s in all_securities if (s.ticker or "").upper().strip() in ticker_set]
+        if req.delete_after_download:
+            print(f">>> Deleting downloaded file {filename}")
+            os.remove(filename)
     else:
-        # Use all securities
-        securities = all_securities
-    
-    attempted = 0
-    skipped_tickers = []
-    failed_tickers = []
-    added_tickers = []
-    price_inputs: list[SecurityPriceDtlInput] = []
-    ticker_to_security = {}  # Map ticker to security for tracking
-    YAHOO_SOURCE_ID = 1759649078984028  # Yahoo Finance pricing source ID
+        ret_data = security_price_loader.load_security_prices_from_list_of_dicts(data_list)
 
-    # Collect price data for batch processing
-    for s in securities:
-        # Skip private securities
-        if getattr(s, "is_private", False):
-            ticker = (s.ticker or "").strip()
-            if ticker:
-                skipped_tickers.append(ticker)
-            continue
-        ticker = (s.ticker or "").strip()
-        if not ticker:
-            continue
-        
-        ticker_to_security[ticker] = s
-        attempted += 1
-        try:
-            tk = yf.Ticker(ticker)
-            # fetch a small date window around the target to accommodate timezone differences
-            start = target_date.strftime("%Y-%m-%d")
-            end_dt = target_date.toordinal() + 1  # +1 day
-            from datetime import date as _d, timedelta
-            end = (_d.fromordinal(end_dt)).strftime("%Y-%m-%d")
-            hist = tk.history(start=start, end=end, auto_adjust=False)
-            if hist is None or len(hist) == 0:
-                skipped_tickers.append(ticker)
-                continue
-            # Try to find a row matching date index; if not, take the last row (for some tickers intraday/UTC offsets)
-            close_price = None
-            # yfinance returns a pandas DataFrame; index may be Timestamp
-            try:
-                # exact date match
-                if target_date.strftime("%Y-%m-%d") in [str(idx)[:10] for idx in hist.index]:
-                    for idx, row in hist.iterrows():
-                        if str(idx)[:10] == target_date.strftime("%Y-%m-%d"):
-                            close_price = float(row.get("Close") or row.get("close"))
-                            break
-            except Exception:
-                close_price = None
-            if close_price is None:
-                # fallback to last row
-                last_row = hist.tail(1)
-                if last_row is not None and len(last_row) > 0:
-                    try:
-                        close_price = float(last_row["Close"][0])
-                    except Exception:
-                        try:
-                            close_price = float(last_row.iloc[0].get("Close") or last_row.iloc[0].get("close"))
-                        except Exception:
-                            close_price = None
-            if close_price is None or not (close_price > 0):
-                skipped_tickers.append(ticker)
-                continue
+    # add input parameters to the returned data
+    ret_data["from_date"] = from_date.isoformat()
+    ret_data["to_date"] = to_date.isoformat()
+    ret_data["tickers"] = ticker_list
 
-            # Prepare extended OHLC fields from the same selected row
-            open_px = None
-            close_px = None
-            high_px = None
-            low_px = None
-            adj_close_px = None
-            volume = None
-            try:
-                # exact date match again to capture full row
-                matched = False
-                if target_date.strftime("%Y-%m-%d") in [str(idx)[:10] for idx in hist.index]:
-                    for idx, row in hist.iterrows():
-                        if str(idx)[:10] == target_date.strftime("%Y-%m-%d"):
-                            open_px = float(row.get("Open") or row.get("open") or 0)
-                            close_px = float(row.get("Close") or row.get("close") or 0)
-                            high_px = float(row.get("High") or row.get("high") or 0)
-                            low_px = float(row.get("Low") or row.get("low") or 0)
-                            adj_close_px = float(row.get("Adj Close") or row.get("Adj_Close") or row.get("adj_close") or 0)
-                            volume = float(row.get("Volume") or row.get("volume") or 0)
-                            matched = True
-                            break
-                if not matched:
-                    lr = hist.tail(1)
-                    if lr is not None and len(lr) > 0:
-                        r = lr.iloc[0]
-                        open_px = float(r.get("Open") or r.get("open") or 0)
-                        close_px = float(r.get("Close") or r.get("close") or 0)
-                        high_px = float(r.get("High") or r.get("high") or 0)
-                        low_px = float(r.get("Low") or r.get("low") or 0)
-                        adj_close_px = float(r.get("Adj Close") or r.get("Adj_Close") or r.get("adj_close") or 0)
-                        volume = float(r.get("Volume") or r.get("volume") or 0)
-            except Exception:
-                pass
+    return ret_data
 
-            # Prepare price input for batch processing
-            spi = SecurityPriceDtlInput(
-                security_id=s.security_id,
-                price_source_id=YAHOO_SOURCE_ID,
-                price_date=target_date,
-                price=round(close_price, 4),
-                open_px=open_px,
-                close_px=close_px,
-                high_px=high_px,
-                low_px=low_px,
-                adj_close_px=adj_close_px,
-                volume=volume,
-                market_cap=0.0,
-                addl_notes="Yahoo",
-                price_currency=(s.security_currency or "USD").upper(),
-            )
-            price_inputs.append(spi)
-            
-        except Exception as e:
-            failed_tickers.append(ticker)
-
-    # Batch save all collected prices
-    saved = 0
-    if price_inputs:
-        try:
-            batch_result = security_price_crud.batch_upsert(price_inputs)
-            saved = batch_result["total"]
-            # All successfully processed tickers are added
-            for price_input in price_inputs:
-                for ticker, sec in ticker_to_security.items():
-                    if sec.security_id == price_input.security_id:
-                        added_tickers.append(ticker)
-                        break
-        except Exception as e:
-            # If batch save fails, move all attempted tickers to failed
-            for price_input in price_inputs:
-                for ticker, sec in ticker_to_security.items():
-                    if sec.security_id == price_input.security_id:
-                        failed_tickers.append(ticker)
-                        break
-
-    return {
-        "date": target_date.isoformat(),
-        "attempted": int(attempted),
-        "saved": int(saved),
-        "added_tickers": added_tickers,
-        "skipped_tickers": skipped_tickers,
-        "failed_tickers": failed_tickers,
-        "ticker_filter": ticker_filter,
-        "securities_processed": len(securities),
-        "batch_operation": True
-    }
 
 
 def download_prices_by_date(target_date: date) -> dict:
@@ -622,19 +420,6 @@ def download_prices_by_date(target_date: date) -> dict:
     }
 
 
-@router.post("/download-date-range")
-def download_prices_for_date_range(start_date: date, end_date: date):
-    # get all weekday (Mon-Fri) dates between start_date and end_date
-    dates = [d.date() for d in pd.date_range(start=start_date, end=end_date, freq="B")]
-    req = DownloadPricesRequest()
-    req.from_date = start_date
-    req.to_date = end_date
-    req.tickers = None
-    download_prices(req)
-    # for d in dates:
-    #     download_prices_by_date(d)
-
-
 @router.put("/{security_price_id}", response_model=SecurityPriceDtl)
 def update_security_price(security_price_id: int, price: SecurityPriceDtlInput):
     try:
@@ -671,4 +456,5 @@ def load_prices_from_file(file: UploadFile = File(...)):
 
 
 if __name__ == "__main__":
-    download_prices_for_date_range(date(2025, 10, 1), date(2025, 10, 3))
+    # download_prices_for_date_range(date(2025, 10, 1), date(2025, 10, 3))
+    print("Starting")

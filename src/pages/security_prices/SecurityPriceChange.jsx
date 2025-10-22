@@ -162,10 +162,11 @@ export default function SecurityPriceChange() {
       const data = allDates.map((ds) => {
         const v = mapByDate.get(ds);
         const price = Number.isFinite(v) ? v : null;
-        const value = mode === "performance"
-          ? (Number.isFinite(firstVal) && Number.isFinite(v) && firstVal !== 0 ? ((v / firstVal) - 1) * 100 : null)
-          : (Number.isFinite(v) ? v : null);
-        return { dateStr: ds, value, price };
+        const perf = (Number.isFinite(firstVal) && Number.isFinite(v) && firstVal !== 0)
+          ? ((v / firstVal) - 1) * 100
+          : null;
+        const value = mode === "performance" ? perf : price;
+        return { dateStr: ds, value, price, perf };
       });
       out.push({ name: t, color: COLORS[idx % COLORS.length], data });
     }
@@ -178,45 +179,21 @@ export default function SecurityPriceChange() {
         <h1 style={{ margin: 0, flex: 1, fontSize: 24 }}>Security Price Change</h1>
       </div>
 
-      {/* Controls */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr auto", gap: 8, alignItems: "end", maxWidth: 1000 }}>
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <label style={{ fontWeight: 600, marginBottom: 4 }}>Primary Security (Ticker)</label>
-          <input list="tickers" value={ticker} onChange={(e) => setTicker(e.target.value)} placeholder="Type ticker (e.g., AAPL)" style={{ padding: 8, border: "1px solid #d1d5db", borderRadius: 6 }} />
+      {/* Controls — single horizontal toolbar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "nowrap", overflowX: "auto", background: "white", border: "1px solid #e5e7eb", borderRadius: 8, padding: 8 }}>
+        {/* Primary ticker with inline label */}
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>Primary Ticker</span>
+          <input list="tickers" value={ticker} onChange={(e) => setTicker(e.target.value)} placeholder="e.g., AAPL" style={{ padding: 8, border: "1px solid #d1d5db", borderRadius: 6, minWidth: 140 }} />
           <datalist id="tickers">
             {securities.map((s) => (
               <option key={s.security_id} value={(s.ticker || "").toUpperCase()}>{s.name || s.company_name || s.ticker}</option>
             ))}
           </datalist>
         </div>
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <label style={{ fontWeight: 600, marginBottom: 4 }}>Compare With (add one or more)</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input list="tickers" value={extraInput} onChange={(e) => setExtraInput(e.target.value)} placeholder="Type ticker and click Add" style={{ flex: 1, padding: 8, border: "1px solid #d1d5db", borderRadius: 6 }} />
-            <button onClick={addExtraTicker} style={{ background: "#10b981", color: "white", border: "none", borderRadius: 6, padding: "0 12px", cursor: "pointer", fontWeight: 600 }}>Add</button>
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
-            {extraTickers.map((t) => (
-              <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 8px", borderRadius: 999, background: "#eef2ff", border: "1px solid #c7d2fe", fontSize: 12 }}>
-                <span style={{ width: 10, height: 10, background: COLORS[allSelectedTickers.indexOf(t) % COLORS.length], borderRadius: 999 }} />
-                {t}
-                <button onClick={() => removeExtraTicker(t)} title="Remove" style={{ marginLeft: 6, border: "none", background: "transparent", color: "#6b7280", cursor: "pointer", fontWeight: 700 }}>×</button>
-              </span>
-            ))}
-          </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <label style={{ fontWeight: 600, marginBottom: 4 }}>From</label>
-          <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={{ padding: 8, border: "1px solid #d1d5db", borderRadius: 6 }} />
-        </div>
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <label style={{ fontWeight: 600, marginBottom: 4 }}>To</label>
-          <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} style={{ padding: 8, border: "1px solid #d1d5db", borderRadius: 6 }} />
-        </div>
-      </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-        <div style={{ display: "flex", gap: 12, background: "white", border: "1px solid #e5e7eb", borderRadius: 8, padding: 8 }}>
+        {/* Mode toggle next to Primary Ticker */}
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 12, background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: "6px 8px" }}>
           <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
             <input type="radio" name="mode" value="price" checked={mode === "price"} onChange={() => setMode("price")} /> Price
           </label>
@@ -224,7 +201,26 @@ export default function SecurityPriceChange() {
             <input type="radio" name="mode" value="performance" checked={mode === "performance"} onChange={() => setMode("performance")} /> Performance (%)
           </label>
         </div>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+
+        {/* Compare with */}
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 280 }}>
+          <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>Compare With</span>
+          <input list="tickers" value={extraInput} onChange={(e) => setExtraInput(e.target.value)} placeholder="Type ticker" style={{ flex: 1, minWidth: 160, padding: 8, border: "1px solid #d1d5db", borderRadius: 6 }} />
+          <button onClick={addExtraTicker} style={{ background: "#10b981", color: "white", border: "none", borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontWeight: 600 }}>Add</button>
+        </div>
+
+        {/* Dates */}
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontWeight: 600 }}>From</span>
+          <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={{ padding: 8, border: "1px solid #d1d5db", borderRadius: 6 }} />
+        </div>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontWeight: 600 }}>To</span>
+          <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} style={{ padding: 8, border: "1px solid #d1d5db", borderRadius: 6 }} />
+        </div>
+
+        {/* Actions aligned to the right */}
+        <div style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 8 }}>
           <button onClick={loadData} style={{ background: "#2563eb", color: "white", border: "none", borderRadius: 6, padding: "8px 12px", cursor: "pointer", fontWeight: 600 }}>Apply</button>
           <button onClick={() => { setTicker(""); setExtraTickers([]); setSeriesByTicker({}); }} style={{ background: "#6b7280", color: "white", border: "none", borderRadius: 6, padding: "8px 12px", cursor: "pointer", fontWeight: 600 }}>Clear</button>
         </div>
@@ -253,19 +249,41 @@ export default function SecurityPriceChange() {
         )}
       </div>
 
-      {/* Interactive Chart */}
+      {/* Interactive Chart with side panel for selected tickers */}
       {chartSeries.series.length > 0 && (
-        <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 8, padding: 12 }}>
-          <h3 style={{ marginTop: 0 }}>{mode === "price" ? "Price History" : "Performance vs Start (%)"}</h3>
-          <InteractiveMultiLineChart series={chartSeries.series} dates={chartSeries.dates} mode={mode} width={1000} height={360} />
-          {/* Legend */}
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 8 }}>
-            {chartSeries.series.map((s) => (
-              <span key={s.name} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12 }}>
-                <span style={{ width: 12, height: 12, background: s.color, borderRadius: 3, border: "1px solid #e5e7eb" }} />
-                {s.name}
-              </span>
-            ))}
+        <div style={{ display: "flex", gap: 12 }}>
+          {/* Left: chart card */}
+          <div style={{ flex: 1, background: "white", border: "1px solid #e5e7eb", borderRadius: 8, padding: 12, minWidth: 0 }}>
+            <h3 style={{ marginTop: 0 }}>{mode === "price" ? "Price History" : "Performance vs Start (%)"}</h3>
+            <InteractiveMultiLineChart series={chartSeries.series} dates={chartSeries.dates} mode={mode} width={820} height={380} />
+            {/* Legend */}
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 8 }}>
+              {chartSeries.series.map((s) => (
+                <span key={s.name} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+                  <span style={{ width: 12, height: 12, background: s.color, borderRadius: 3, border: "1px solid #e5e7eb" }} />
+                  {s.name}
+                </span>
+              ))}
+            </div>
+          </div>
+          {/* Right: selected tickers */}
+          <div style={{ width: 240, background: "white", border: "1px solid #e5e7eb", borderRadius: 8, padding: 12, alignSelf: "flex-start" }}>
+            <h3 style={{ marginTop: 0, fontSize: 16 }}>Selected Securities</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {allSelectedTickers.length === 0 ? (
+                <div style={{ color: "#6b7280", fontSize: 12 }}>None selected</div>
+              ) : (
+                allSelectedTickers.map((t) => (
+                  <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 8, background: "#f9fafb", border: "1px solid #e5e7eb", fontSize: 12 }}>
+                    <span style={{ width: 10, height: 10, background: COLORS[allSelectedTickers.indexOf(t) % COLORS.length], borderRadius: 999 }} />
+                    <span style={{ fontWeight: 600 }}>{t}</span>
+                    {t !== (ticker || '').trim().toUpperCase() && (
+                      <button onClick={() => removeExtraTicker(t)} title="Remove" style={{ marginLeft: "auto", border: "none", background: "transparent", color: "#6b7280", cursor: "pointer", fontWeight: 700 }}>×</button>
+                    )}
+                  </span>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -406,7 +424,9 @@ function InteractiveMultiLineChart({ series, dates, mode = "price", width = 900,
     const yPerSeries = series.map((s) => {
       const dp = s.data[bestIdx];
       const v = dp?.value ?? null;
-      return { name: s.name, color: s.color, x: hoverX, y: v == null ? null : yScale(v), value: v };
+      const price = dp?.price ?? null;
+      const perf = dp?.perf ?? null;
+      return { name: s.name, color: s.color, x: hoverX, y: v == null ? null : yScale(v), value: v, price, perf };
     });
     setHover({ idx: bestIdx, x: hoverX, yPerSeries });
   }
@@ -457,11 +477,15 @@ function InteractiveMultiLineChart({ series, dates, mode = "price", width = 900,
             const dateLabel = dates[hover.idx];
             const lines = hover.yPerSeries
               .filter((p) => p.value != null)
-              .map((p) => ({ name: p.name, color: p.color, text: mode === 'performance' ? `${fmtNum(p.value)}%` : `${fmtNum(p.value)}` }));
+              .map((p) => {
+                const priceText = p.price == null ? '-' : `${fmtNum(p.price)}`;
+                const perfText = p.perf == null ? '-' : `${fmtNum(p.perf)}%`;
+                return { name: p.name, color: p.color, priceText, perfText };
+              });
             if (lines.length === 0) return null;
-            const boxX = Math.min(Math.max(hover.x + 8, margin.left + 4), margin.left + w - 180);
+            const boxX = Math.min(Math.max(hover.x + 8, margin.left + 4), margin.left + w - 240);
             const boxY = margin.top + 8;
-            const boxW = 170;
+            const boxW = 230;
             const boxH = 24 + lines.length * 18;
             return (
               <g>
@@ -470,7 +494,7 @@ function InteractiveMultiLineChart({ series, dates, mode = "price", width = 900,
                 {lines.map((ln, i) => (
                   <g key={ln.name}>
                     <rect x={boxX + 8} y={boxY + 22 + i * 18 - 8} width={8} height={8} fill={ln.color} rx={1} ry={1} />
-                    <text x={boxX + 20} y={boxY + 22 + i * 18} fill="#f9fafb" fontSize={12}>{ln.name}: {ln.text}</text>
+                    <text x={boxX + 20} y={boxY + 22 + i * 18} fill="#f9fafb" fontSize={12}>{ln.name}: Price {ln.priceText} • Perf {ln.perfText}</text>
                   </g>
                 ))}
               </g>

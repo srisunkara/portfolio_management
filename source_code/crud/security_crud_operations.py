@@ -26,6 +26,16 @@ class SecurityCRUD(BaseCRUD[SecurityDtl]):
         )
         return [SecurityDtl(**row) for row in rows]
 
+    def list_all_public_with_missing_prices(self, from_date, to_date) -> List[SecurityDtl]:
+        sql = ("SELECT security_id, ticker, name, company_name, security_currency, is_private, created_ts, last_updated_ts "
+               "FROM security_dtl where is_private = False and security_id not in "
+               f"(select distinct security_id from security_price_dtl "
+               f"where price_date >= '{from_date}' and price_date <= '{to_date}') "
+               "ORDER BY ticker, name, security_id")
+        print(f"Final SQL: {sql}")
+        rows = pg_db_conn_manager.fetch_data(sql)
+        return [SecurityDtl(**row) for row in rows]
+
     def list_all_by_ticker(self, ticker_list: list[str], public_only: Optional[bool] = True) -> List[SecurityDtl]:
         # Return early if no tickers provided
         if not ticker_list:

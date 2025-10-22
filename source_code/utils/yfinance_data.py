@@ -25,6 +25,9 @@ def get_historical_data_list(
         A list of dictionaries, where each dictionary represents one day's
         data for one ticker. Returns an empty list on failure.
     """
+    # library doesn't give data for the last date - ex, if data is requested with 10/20 as the start date and end date, it returns no data.
+    # To fix, move the end date to the next day.
+    end_date = pd.to_datetime(end_date) + pd.Timedelta(days=1)
     print(f"--- Downloading data for {len(tickers)} tickers from {start_date} to {end_date} ---")
 
     try:
@@ -69,7 +72,6 @@ def get_historical_data_list(
 
         # df_flat.columns = columns
 
-
         # 4. Convert the DataFrame to the desired list of dictionaries
         data_list = df_flat.to_dict('records')
 
@@ -100,8 +102,8 @@ if __name__ == '__main__':
 
     # Define parameters
     TICKERS_LIST = ['AAPL', 'MSFT', 'TSLA']
-    START = '2024-06-01'
-    END = '2024-06-15'
+    START = '2025-10-20'
+    END = '2025-10-20'
 
     # Call the function
     data, cols = get_historical_data_list(TICKERS_LIST, START, END)
