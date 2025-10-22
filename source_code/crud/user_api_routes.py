@@ -40,6 +40,7 @@ def save_user(user: UserDtlInput):
     return user_crud.save(user)
 
 
+@router.get("", response_model=list[UserDtl])
 @router.get("/", response_model=list[UserDtl])
 def list_users():
     return user_crud.list_all()

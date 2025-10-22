@@ -93,6 +93,7 @@ async def upload_portfolios_csv(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail=f"Failed to process CSV: {str(e)}")
 
 
+@router.get("", response_model=list[PortfolioDtl])
 @router.get("/", response_model=list[PortfolioDtl])
 def list_portfolios():
     return portfolio_crud.list_all()

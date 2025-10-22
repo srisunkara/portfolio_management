@@ -55,7 +55,7 @@ PY_APP_CONTAINER=port_mgmt-python-app-container_$APP_ENV
 POSTGRES_IMAGE=postgres:15-alpine3.21
 PY_APP_IMAGE=port_mgmt-python-app-image
 POSTGRES_DB_USER=postgres
-POSTGRES_DB_NAME=investment_db
+POSTGRES_DB_NAME=investment_db_$APP_ENV
 DATA_DIR="/Users/srini/Documents/database/postgresql/portfolio_management/$APP_ENV/data"
 INIT_SCRIPTS_DIR="/Users/srini/Documents/database/postgresql/portfolio_management/$APP_ENV/init-scripts"
 NETWORK_NAME=port_mgmt_net_$APP_ENV
@@ -99,12 +99,12 @@ else
       -e POSTGRES_PASSWORD=$POSTGRES_DB_PASS \
       -e POSTGRES_DB=$POSTGRES_DB_NAME \
       -v "$DATA_DIR":/var/lib/postgresql/data \
+      -v "$INIT_SCRIPTS_DIR":/docker-entrypoint-initdb.d \
       -p 5431:5432 \
       $POSTGRES_IMAGE
   fi
 fi
 
-#      -v "$INIT_SCRIPTS_DIR":/docker-entrypoint-initdb.d \
 
 # === STEP 4: Wait for PostgreSQL to be ready ===
 echo "⏳ Waiting for PostgreSQL to be ready..."

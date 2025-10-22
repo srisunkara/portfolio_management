@@ -288,6 +288,7 @@ async def upload_securities_csv(file: UploadFile = File(...)) -> dict:
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to process CSV: {str(e)}")
 
+@router.get("", response_model=list[SecurityDtl])
 @router.get("/", response_model=list[SecurityDtl])
 def list_securities():
     return security_crud.list_all()

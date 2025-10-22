@@ -68,6 +68,7 @@ async def upload_platforms_csv(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail=f"Failed to process CSV: {str(e)}")
 
 
+@router.get("", response_model=list[ExternalPlatformDtl])
 @router.get("/", response_model=list[ExternalPlatformDtl])
 def list_platforms():
     return external_platform_crud.list_all()

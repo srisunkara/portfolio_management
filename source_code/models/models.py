@@ -168,6 +168,12 @@ class SecurityPriceDtl(BaseModel):
     price_source_id: int
     price_date: date = date.today()
     price: float
+    open_px: Optional[float] = None
+    close_px: Optional[float] = None
+    high_px: Optional[float] = None
+    low_px: Optional[float] = None
+    adj_close_px: Optional[float] = None
+    volume: Optional[float] = None
     market_cap: float = 0.0
     addl_notes: Optional[str] = None
     price_currency: str = 'USD'
@@ -180,6 +186,12 @@ class SecurityPriceDtlInput(BaseModel):
     price_source_id: int
     price_date: date = date.today()
     price: float
+    open_px: Optional[float] = None
+    close_px: Optional[float] = None
+    high_px: Optional[float] = None
+    low_px: Optional[float] = None
+    adj_close_px: Optional[float] = None
+    volume: Optional[float] = None
     market_cap: float = 0.0
     addl_notes: Optional[str] = None
     price_currency: str = 'USD'

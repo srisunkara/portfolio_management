@@ -26,6 +26,28 @@ class SecurityCRUD(BaseCRUD[SecurityDtl]):
         )
         return [SecurityDtl(**row) for row in rows]
 
+    def list_all_by_ticker(self, ticker_list: list[str], public_only: Optional[bool] = True) -> List[SecurityDtl]:
+        # Return early if no tickers provided
+        if not ticker_list:
+            return []
+
+        # replace %s in ticker_list_str with actual values in lower case
+        ticker_list_str = ", ".join([f"'{t.lower()}'" for t in ticker_list])
+
+        where_clause = f"LOWER(ticker) IN ({ticker_list_str})"
+        if public_only:
+            where_clause += " AND is_private = False"
+
+        sql = (
+            "SELECT security_id, ticker, name, company_name, security_currency, is_private, created_ts, last_updated_ts "
+            "FROM security_dtl "
+            f"WHERE {where_clause} "
+            "ORDER BY ticker, name, security_id"
+        ).format(where_clause=where_clause)
+        print(f"Final SQL: {sql}")
+        rows = pg_db_conn_manager.fetch_data(sql)
+        return [SecurityDtl(**row) for row in rows]
+
     def save(self, item: SecurityDtlInput) -> SecurityDtl:
         next_security_id = date_utils.get_timestamp_with_microseconds()
         sec_dtl = SecurityDtl(

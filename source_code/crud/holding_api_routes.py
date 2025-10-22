@@ -16,6 +16,7 @@ from source_code.utils import domain_utils
 router = APIRouter(prefix="/api/holdings", tags=["Holdings"])
 
 
+@router.get("", response_model=list[HoldingDtl])
 @router.get("/", response_model=list[HoldingDtl])
 def list_holdings():
     return holding_crud.list_holdings()

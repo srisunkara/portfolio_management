@@ -26,6 +26,7 @@ async function request(path, options = {}) {
     }
   }
   const url = `${BASE_URL}${p.startsWith("/") ? "" : "/"}${p}`;
+  console.log("Request:", url, options);
   const res = await fetch(url, {
     headers: {
       "Content-Type": "application/json",

@@ -15,6 +15,7 @@ from source_code.models.models import CompanyValuationDtl, CompanyValuationDtlIn
 router = APIRouter(prefix="/api/company-valuations", tags=["Company Valuations"])
 
 
+@router.get("", response_model=list[CompanyValuationDtl])
 @router.get("/", response_model=list[CompanyValuationDtl])
 def list_company_valuations(date: date | None = None):
     """List all company valuations, optionally filtered by date."""

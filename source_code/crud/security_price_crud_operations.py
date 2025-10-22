@@ -13,7 +13,7 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
     def list_all(self) -> List[SecurityPriceDtl]:
         rows = pg_db_conn_manager.fetch_data(
             "SELECT security_price_id, price_dtl.security_id, price_source_id, price_date,  "
-            "price, market_cap, addl_notes, price_currency, price_dtl.created_ts, price_dtl.last_updated_ts "
+            "price, open_px, close_px, high_px, low_px, adj_close_px, volume, market_cap, addl_notes, price_currency, price_dtl.created_ts, price_dtl.last_updated_ts "
             "FROM security_price_dtl price_dtl "
             "inner join security_dtl on price_dtl.security_id = security_dtl.security_id "
             "ORDER BY ticker, name, security_id"
@@ -23,7 +23,7 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
     def list_by_date(self, target_date) -> List[SecurityPriceDtl]:
         rows = pg_db_conn_manager.fetch_data(
             "SELECT security_price_id, price_dtl.security_id, price_source_id, price_date,  "
-            "price, market_cap, addl_notes, price_currency, price_dtl.created_ts, price_dtl.last_updated_ts "
+            "price, open_px, close_px, high_px, low_px, adj_close_px, volume, market_cap, addl_notes, price_currency, price_dtl.created_ts, price_dtl.last_updated_ts "
             "FROM security_price_dtl price_dtl "
             "inner join security_dtl on price_dtl.security_id = security_dtl.security_id "
             "WHERE price_date = %s "
@@ -56,7 +56,7 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
         
         query = (
             "SELECT security_price_id, price_dtl.security_id, price_source_id, price_date,  "
-            "price, market_cap, addl_notes, price_currency, price_dtl.created_ts, price_dtl.last_updated_ts "
+            "price, open_px, close_px, high_px, low_px, adj_close_px, volume, market_cap, addl_notes, price_currency, price_dtl.created_ts, price_dtl.last_updated_ts "
             "FROM security_price_dtl price_dtl "
             "inner join security_dtl on price_dtl.security_id = security_dtl.security_id "
             f"{where_clause} "
@@ -70,7 +70,7 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
         """Get security price for a specific ticker and date"""
         rows = pg_db_conn_manager.fetch_data(
             "SELECT security_price_id, price_dtl.security_id, price_source_id, price_date,  "
-            "price, market_cap, addl_notes, price_currency, price_dtl.created_ts, price_dtl.last_updated_ts "
+            "price, open_px, close_px, high_px, low_px, adj_close_px, volume, market_cap, addl_notes, price_currency, price_dtl.created_ts, price_dtl.last_updated_ts "
             "FROM security_price_dtl price_dtl "
             "inner join security_dtl on price_dtl.security_id = security_dtl.security_id "
             "WHERE ticker = %s AND price_date = %s "
@@ -97,6 +97,12 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
             update_sql = (
                 "UPDATE security_price_dtl\n"
                 "SET price = %s,\n"
+                "    open_px = %s,\n"
+                "    close_px = %s,\n"
+                "    high_px = %s,\n"
+                "    low_px = %s,\n"
+                "    adj_close_px = %s,\n"
+                "    volume = %s,\n"
                 "    market_cap = %s,\n"
                 "    addl_notes = %s,\n"
                 "    price_currency = %s,\n"
@@ -105,6 +111,12 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
             )
             params = (
                 item.price,
+                item.open_px,
+                item.close_px,
+                item.high_px,
+                item.low_px,
+                item.adj_close_px,
+                item.volume,
                 item.market_cap,
                 item.addl_notes,
                 item.price_currency,
@@ -123,6 +135,12 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
             price_source_id=item.price_source_id,
             price_date=item.price_date,
             price=item.price,
+            open_px=item.open_px,
+            close_px=item.close_px,
+            high_px=item.high_px,
+            low_px=item.low_px,
+            adj_close_px=item.adj_close_px,
+            volume=item.volume,
             market_cap=item.market_cap,
             addl_notes=item.addl_notes,
             price_currency=item.price_currency,
@@ -131,13 +149,19 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
         )
         insert_sql = """
         INSERT INTO security_price_dtl (
-            security_price_id, security_id, price_source_id, price_date, price, market_cap, addl_notes, price_currency, created_ts, last_updated_ts
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            security_price_id, security_id, price_source_id, price_date, price, open_px, close_px, high_px, low_px, adj_close_px, volume, market_cap, addl_notes, price_currency, created_ts, last_updated_ts
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (security_price_id) DO UPDATE SET
             security_id = EXCLUDED.security_id,
             price_source_id = EXCLUDED.price_source_id,
             price_date = EXCLUDED.price_date,
             price = EXCLUDED.price,
+            open_px = EXCLUDED.open_px,
+            close_px = EXCLUDED.close_px,
+            high_px = EXCLUDED.high_px,
+            low_px = EXCLUDED.low_px,
+            adj_close_px = EXCLUDED.adj_close_px,
+            volume = EXCLUDED.volume,
             market_cap = EXCLUDED.market_cap,
             addl_notes = EXCLUDED.addl_notes,
             price_currency = EXCLUDED.price_currency,
@@ -149,6 +173,12 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
             price.price_source_id,
             price.price_date,
             price.price,
+            price.open_px,
+            price.close_px,
+            price.high_px,
+            price.low_px,
+            price.adj_close_px,
+            price.volume,
             price.market_cap,
             price.addl_notes,
             price.price_currency,
@@ -189,6 +219,12 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
                 item.price_source_id,
                 item.price_date,
                 item.price,
+                item.open_px,
+                item.close_px,
+                item.high_px,
+                item.low_px,
+                item.adj_close_px,
+                item.volume,
                 item.market_cap or 0.0,
                 item.addl_notes or "",
                 item.price_currency or "USD",
@@ -200,10 +236,16 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
         upsert_sql = """
         INSERT INTO security_price_dtl (
             security_price_id, security_id, price_source_id, price_date, 
-            price, market_cap, addl_notes, price_currency, created_ts, last_updated_ts
+            price, open_px, close_px, high_px, low_px, adj_close_px, volume, market_cap, addl_notes, price_currency, created_ts, last_updated_ts
         ) VALUES %s
         ON CONFLICT (security_id, price_source_id, price_date) DO UPDATE SET
             price = EXCLUDED.price,
+            open_px = EXCLUDED.open_px,
+            close_px = EXCLUDED.close_px,
+            high_px = EXCLUDED.high_px,
+            low_px = EXCLUDED.low_px,
+            adj_close_px = EXCLUDED.adj_close_px,
+            volume = EXCLUDED.volume,
             market_cap = EXCLUDED.market_cap,
             addl_notes = EXCLUDED.addl_notes,
             price_currency = EXCLUDED.price_currency,
@@ -232,7 +274,7 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
 
     def get_security(self, pk: int) -> Optional[SecurityPriceDtl]:
         rows = pg_db_conn_manager.fetch_data(
-            "SELECT security_price_id, security_id, price_source_id, price_date, price, market_cap, addl_notes, price_currency, created_ts, last_updated_ts "
+            "SELECT security_price_id, security_id, price_source_id, price_date, price, open_px, close_px, high_px, low_px, adj_close_px, volume, market_cap, addl_notes, price_currency, created_ts, last_updated_ts "
             "FROM security_price_dtl WHERE security_price_id = %s",
             (pk,),
         )
@@ -253,6 +295,12 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
             price_source_id = %s,
             price_date = %s,
             price = %s,
+            open_px = %s,
+            close_px = %s,
+            high_px = %s,
+            low_px = %s,
+            adj_close_px = %s,
+            volume = %s,
             market_cap = %s,
             addl_notes = %s,
             price_currency = %s,
@@ -264,6 +312,12 @@ class SecurityPriceCRUD(BaseCRUD[SecurityPriceDtl]):
             item.price_source_id,
             item.price_date,
             item.price,
+            item.open_px,
+            item.close_px,
+            item.high_px,
+            item.low_px,
+            item.adj_close_px,
+            item.volume,
             item.market_cap,
             item.addl_notes,
             item.price_currency,

@@ -57,6 +57,12 @@ export const modelFieldDefs = {
   SecurityPriceDtl: [
     { name: "price_date", type: "date" },
     { name: "price", type: "number" },
+    { name: "open_px", type: "number" },
+    { name: "close_px", type: "number" },
+    { name: "high_px", type: "number" },
+    { name: "low_px", type: "number" },
+    { name: "adj_close_px", type: "number" },
+    { name: "volume", type: "number" },
     { name: "market_cap", type: "number" },
     { name: "addl_notes", type: "string" },
     { name: "price_currency", type: "string" },

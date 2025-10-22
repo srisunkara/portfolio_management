@@ -25,6 +25,7 @@ def save_transaction(transaction: TransactionDtlInput):
     return transaction_crud.save(transaction)
 
 
+@router.get("", response_model=list[TransactionFullView])
 @router.get("/", response_model=list[TransactionFullView])
 def list_transactions_full():
     return transaction_crud.list_full()
