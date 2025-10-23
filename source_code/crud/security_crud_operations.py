@@ -4,7 +4,7 @@ from typing import List, Optional
 from source_code.config import pg_db_conn_manager
 from source_code.crud.base import BaseCRUD
 from source_code.models.models import SecurityDtl, SecurityDtlInput
-from source_code.utils import domain_utils as date_utils
+from source_code.utils import domain_utils as domain_utils
 
 
 class SecurityCRUD(BaseCRUD[SecurityDtl]):
@@ -59,7 +59,7 @@ class SecurityCRUD(BaseCRUD[SecurityDtl]):
         return [SecurityDtl(**row) for row in rows]
 
     def save(self, item: SecurityDtlInput) -> SecurityDtl:
-        next_security_id = date_utils.get_timestamp_with_microseconds()
+        next_security_id = domain_utils.get_timestamp_with_microseconds()
         sec_dtl = SecurityDtl(
             security_id=next_security_id,
             ticker=item.ticker,
@@ -67,15 +67,14 @@ class SecurityCRUD(BaseCRUD[SecurityDtl]):
             company_name=item.company_name,
             security_currency=item.security_currency,
             is_private=item.is_private,
-            created_ts=date_utils.get_current_date_time(),
-            last_updated_ts=date_utils.get_current_date_time(),
+            created_ts=domain_utils.get_current_date_time(),
+            last_updated_ts=domain_utils.get_current_date_time(),
         )
         sql = """
         INSERT INTO security_dtl (
             security_id, ticker, name, company_name, security_currency, is_private, created_ts, last_updated_ts
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (security_id) DO UPDATE SET
-            ticker = EXCLUDED.ticker,
+        ON CONFLICT (ticker) DO UPDATE SET
             name = EXCLUDED.name,
             company_name = EXCLUDED.company_name,
             security_currency = EXCLUDED.security_currency,
@@ -139,7 +138,7 @@ class SecurityCRUD(BaseCRUD[SecurityDtl]):
         WHERE security_id = %s
         """
         params = (
-            item.ticker, item.name, item.company_name, item.security_currency.upper(), item.is_private, date_utils.get_current_date_time(), pk
+            item.ticker, item.name, item.company_name, item.security_currency.upper(), item.is_private, domain_utils.get_current_date_time(), pk
         )
         affected = pg_db_conn_manager.execute_query(sql, params)
         if affected == 0:
@@ -168,8 +167,8 @@ class SecurityCRUD(BaseCRUD[SecurityDtl]):
         WHERE LOWER(ticker) = LOWER(%s)
         """
         params = (
-            item.name, item.company_name, item.security_currency.upper(), 
-            item.is_private, date_utils.get_current_date_time(), ticker
+            item.name, item.company_name, item.security_currency.upper(),
+            item.is_private, domain_utils.get_current_date_time(), ticker
         )
         affected = pg_db_conn_manager.execute_query(sql, params)
         if affected == 0:

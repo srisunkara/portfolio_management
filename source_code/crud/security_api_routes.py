@@ -7,6 +7,7 @@ from fastapi.responses import Response
 
 from source_code.crud.security_crud_operations import security_crud
 from source_code.models.models import SecurityDtl, SecurityDtlInput
+from source_code.utils import security_data_by_yahooquery, domain_utils
 
 router = APIRouter(prefix="/api/securities", tags=["Securities"])
 
@@ -404,3 +405,26 @@ def save_securities_bulk_unique(securities: list[SecurityDtlInput]) -> dict:
             skipped.append({"input": it.model_dump() if hasattr(it, "model_dump") else str(it), "reason": str(e)})
 
     return {"added": added, "skipped": skipped}
+
+# add an end point to pull company data using security_data_by_yahooquery for a list of tickers given and save the data into security_dtl
+@router.post("/save-company-data")
+def get_company_data(tickers: list[str] = []):
+    # asset_profile_data = security_data_by_yahooquery.get_security_data(tickers, "asset_profile")
+    price_data = security_data_by_yahooquery.get_security_data(tickers)
+    price_data = price_data["price"]
+    # build security_dtl objects and save/update them
+    security_dtl_list = []
+    for ticker, company_data in price_data.items():
+        security_dtl = SecurityDtl(
+            security_id=domain_utils.get_timestamp_with_microseconds(),
+            ticker=ticker,
+            name=company_data["shortName"],
+            company_name=company_data["longName"],
+            security_currency=company_data["currency"],
+            is_private=False,
+        )
+        security_dtl_list.append(security_dtl)
+
+    # save security_dtl objects as a bulk operation
+    security_crud.save_many_with_upsert(security_dtl_list)
+    return security_dtl_list

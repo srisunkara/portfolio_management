@@ -2,6 +2,33 @@ import yfinance as yf
 import pandas as pd
 from typing import List, Dict, Any
 
+# function to get company data based on list of tickers
+# Install the library if not already installed
+# pip install yfinance
+
+import yfinance as yf
+
+def get_company_info(ticker):
+    """Fetches key company information for a given stock ticker from Yahoo Finance."""
+    try:
+        stock = yf.Ticker(ticker)
+        info = stock.info
+        company_info = {
+            "ticker": ticker,
+            "name": info.get("longName"),
+            "sector": info.get("sector"),
+            "industry": info.get("industry"),
+            "country": info.get("country"),
+            "market_cap": info.get("marketCap"),
+            "website": info.get("website")
+        }
+
+        return company_info
+
+    except Exception as e:
+        print(f"Error retrieving data for {ticker}: {e}")
+        return None
+
 
 def get_historical_data_list(
         tickers: List[str],
@@ -85,6 +112,12 @@ def get_historical_data_list(
 
 # --- Example Usage ---
 if __name__ == '__main__':
+
+    # Example usage
+    tickers = ["AAPL", "GOOGL", "MSFT"]
+    for t in tickers:
+        data = get_company_info(t)
+        print(data)
 
     ticker = yf.Ticker("AAPL")
 

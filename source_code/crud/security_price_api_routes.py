@@ -18,7 +18,7 @@ from source_code.crud.security_crud_operations import security_crud
 from source_code.crud.security_price_crud_operations import security_price_crud
 from source_code.models.models import SecurityPriceDtl, SecurityPriceDtlInput
 from source_code.utils import security_price_loader
-from source_code.utils.yfinance_data import get_historical_data_list
+from source_code.utils.security_data_by_yfinance import get_historical_data_list
 
 router = APIRouter(prefix="/api/security-prices", tags=["Security Prices"])
 
