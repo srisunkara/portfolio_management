@@ -53,17 +53,32 @@ APP_DIR="$PROJECT_DIR"
 POSTGRES_CONTAINER=port_mgmt_postgres_$APP_ENV
 PY_APP_CONTAINER=port_mgmt-python-app-container_$APP_ENV
 POSTGRES_IMAGE=postgres:15-alpine3.21
-PY_APP_IMAGE=port_mgmt-python-app-image
+PY_APP_IMAGE=munnydocker/port_mgmt-python-app-image
 POSTGRES_DB_USER=postgres
 POSTGRES_DB_NAME=investment_db_$APP_ENV
 DATA_DIR="/Users/srini/Documents/database/postgresql/portfolio_management/$APP_ENV/data"
 INIT_SCRIPTS_DIR="/Users/srini/Documents/database/postgresql/portfolio_management/$APP_ENV/init-scripts"
 NETWORK_NAME=port_mgmt_net_$APP_ENV
 
+# Select host ports based on environment (to allow QA and Prod to run simultaneously)
+# QA defaults: Postgres 5431, FastAPI 8081
+# Prod defaults: Postgres 5430, FastAPI 8080
+# Other envs fall back to QA defaults unless overridden later
+HOST_PG_PORT=5431
+HOST_APP_PORT=8081
+if [[ "${APP_ENV,,}" == "prod" || "${APP_ENV,,}" == "production" ]]; then
+  HOST_PG_PORT=5430
+  HOST_APP_PORT=8080
+elif [[ "${APP_ENV,,}" == "qa" ]]; then
+  HOST_PG_PORT=5431
+  HOST_APP_PORT=8081
+fi
+
 # === STEP 0: Go to project directory ===
 cd "$PROJECT_DIR"
 echo "📂 Working directory: $PROJECT_DIR"
 echo "🌎 Using APP_ENV='$APP_ENV'"
+echo "📡 Host ports => Postgres: $HOST_PG_PORT, FastAPI: $HOST_APP_PORT"
 
 # === STEP 1: Ensure data & init folders exist ===
 for dir in "$DATA_DIR" "$INIT_SCRIPTS_DIR"; do
@@ -91,7 +106,7 @@ else
     echo "⚠️ Found stopped PostgreSQL container. Starting it..."
     docker start $POSTGRES_CONTAINER
   else
-    echo "🐘 Starting new PostgreSQL container..."
+    echo "🐘 Starting new PostgreSQL container on host port $HOST_PG_PORT..."
     docker run -d \
       --name $POSTGRES_CONTAINER \
       --network $NETWORK_NAME \
@@ -100,7 +115,7 @@ else
       -e POSTGRES_DB=$POSTGRES_DB_NAME \
       -v "$DATA_DIR":/var/lib/postgresql/data \
       -v "$INIT_SCRIPTS_DIR":/docker-entrypoint-initdb.d \
-      -p 5431:5432 \
+      -p ${HOST_PG_PORT}:5432 \
       $POSTGRES_IMAGE
   fi
 fi
@@ -124,7 +139,7 @@ else
     echo "🐍 Building Python app image (if not already built)..."
     docker build -t $PY_APP_IMAGE "$APP_DIR"
 
-    echo "🚀 Starting new Python app container..."
+    echo "🚀 Starting new Python app container on host port $HOST_APP_PORT..."
     docker run -d \
       --name $PY_APP_CONTAINER \
       --network $NETWORK_NAME \
@@ -134,7 +149,7 @@ else
       -e POSTGRES_DB_DB_USER=$POSTGRES_DB_USER \
       -e POSTGRES_DB_PASS="$POSTGRES_DB_PASS" \
       -e POSTGRES_DB_DB_PORT=5432 \
-      -p 8080:8000 \
+      -p ${HOST_APP_PORT}:8000 \
       $PY_APP_IMAGE
   fi
 fi
