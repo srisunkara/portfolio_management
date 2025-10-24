@@ -66,10 +66,12 @@ NETWORK_NAME=port_mgmt_net_$APP_ENV
 # Other envs fall back to QA defaults unless overridden later
 HOST_PG_PORT=5431
 HOST_APP_PORT=8081
-if [[ "${APP_ENV,,}" == "prod" || "${APP_ENV,,}" == "production" ]]; then
+# macOS ships an older bash without ${var,,}; use a portable lowercase conversion
+APP_ENV_LC=$(printf '%s' "$APP_ENV" | tr '[:upper:]' '[:lower:]')
+if [[ "$APP_ENV_LC" == "prod" || "$APP_ENV_LC" == "production" ]]; then
   HOST_PG_PORT=5430
   HOST_APP_PORT=8080
-elif [[ "${APP_ENV,,}" == "qa" ]]; then
+elif [[ "$APP_ENV_LC" == "qa" ]]; then
   HOST_PG_PORT=5431
   HOST_APP_PORT=8081
 fi
