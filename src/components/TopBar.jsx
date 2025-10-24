@@ -45,6 +45,7 @@ export default function TopBar() {
           <MenuLink to="/securities">List</MenuLink>
           <MenuLink to="/securities/new">Add</MenuLink>
           <MenuLink to="/securities/new-bulk">Add Multiple</MenuLink>
+          <MenuLink to="/securities/import">Import by Tickers</MenuLink>
         </Dropdown>
 
         <Dropdown label="Security Prices">

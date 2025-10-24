@@ -90,6 +90,7 @@ export default function SecuritiesList() {
     );
   }, [rows, fields, filters]);
 
+
   if (loading) return <div>Loading securities...</div>;
   if (error) return <div style={{ color: "#b91c1c" }}>{error}</div>;
 
@@ -108,6 +109,7 @@ export default function SecuritiesList() {
           Add Security
         </Link>
       </div>
+
 
       <div style={{ background: "white", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflow: "auto", marginTop: 12, maxHeight: "calc(100vh - 160px)" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 720 }}>

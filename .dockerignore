@@ -1,38 +1,33 @@
-# Docker build context exclusions
-
-# Node / frontend
+# Ignore Node and Vite build caches and deps
 node_modules
 npm-debug.log*
-yarn-error.log*
-.pnpm-store
-
-# Dist build artifacts (built in Node stage, not needed from context)
-dist
-
-# Python caches
+# Frontend build output is produced inside Docker build stage; no need to send local dist
+/dist
+# Python cache
 __pycache__
-*.py[cod]
+*.pyc
 *.pyo
 *.pyd
 *.pytest_cache
+.mypy_cache
+.pytype
 
-# Virtual envs
-.venv
-venv
-
-# VCS
+# VCS and IDE
 .git
 .gitignore
-
-# IDE / editor
 .idea
 .vscode
 
-# Local files
+# OS
 .DS_Store
-server.log
+Thumbs.db
 
-# Tests and samples (optional to reduce image size and build time)
-tests
-test_*.py
-samples
+# Local data and logs
+postgres-data
+server.log
+*.sqlite
+*.db
+
+# Docker
+Dockerfile*
+!Dockerfile

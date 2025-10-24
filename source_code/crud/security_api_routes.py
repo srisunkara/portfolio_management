@@ -407,8 +407,8 @@ def save_securities_bulk_unique(securities: list[SecurityDtlInput]) -> dict:
     return {"added": added, "skipped": skipped}
 
 # add an end point to pull company data using security_data_by_yahooquery for a list of tickers given and save the data into security_dtl
-@router.post("/save-company-data")
-def get_company_data(tickers: list[str] = []):
+@router.post("/save_company_data_from_tickers")
+def save_company_data_from_tickers(tickers: list[str] = []):
     # asset_profile_data = security_data_by_yahooquery.get_security_data(tickers, "asset_profile")
     price_data = security_data_by_yahooquery.get_security_data(tickers)
     price_data = price_data["price"]

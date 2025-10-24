@@ -56,6 +56,8 @@ export const api = {
   createSecuritiesBulkUnique: (payloadList) => request("/securities/bulk-unique", { method: "POST", body: JSON.stringify(payloadList) }),
   updateSecurity: (id, payload) => request(`/securities/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteSecurity: (id) => request(`/securities/${id}`, { method: "DELETE" }),
+  // Import company data by tickers (YahooQuery)
+  saveCompanyDataFromTickers: (tickers) => request("/securities/save_company_data_from_tickers", { method: "POST", body: JSON.stringify(tickers || []) }),
 
   // Portfolio endpoints
   listPortfolios: () => request("/portfolios", { method: "GET" }),

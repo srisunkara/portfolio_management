@@ -17,9 +17,11 @@ import HoldingsRecalculate from "./pages/holdings/HoldingsRecalculate.jsx";
 import TopBar from "./components/TopBar.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
+import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import SecuritiesList from "./pages/securities/SecuritiesList.jsx";
 import SecurityForm from "./pages/securities/SecurityForm.jsx";
 import SecurityFormBulk from "./pages/securities/SecurityFormBulk.jsx";
+import SecuritiesImport from "./pages/securities/SecuritiesImport.jsx";
 import SecurityDelete from "./pages/securities/SecurityDelete.jsx";
 import UsersList from "./pages/users/UsersList.jsx";
 import MyProfile from "./pages/users/MyProfile.jsx";
@@ -68,9 +70,10 @@ export default function App() {
                     <Route path="/transactions/performance-comparison" element={<ProtectedRoute><TransactionPerformanceComparison /></ProtectedRoute>} />
 
           {/* Securities */}
-          <Route path="/securities" element={<ProtectedRoute><SecuritiesList /></ProtectedRoute>} />
+          <Route path="/securities" element={<ProtectedRoute><ErrorBoundary><SecuritiesList /></ErrorBoundary></ProtectedRoute>} />
           <Route path="/securities/new" element={<ProtectedRoute><SecurityForm mode="create" /></ProtectedRoute>} />
           <Route path="/securities/new-bulk" element={<ProtectedRoute><SecurityFormBulk /></ProtectedRoute>} />
+          <Route path="/securities/import" element={<ProtectedRoute><SecuritiesImport /></ProtectedRoute>} />
           <Route path="/securities/:id/edit" element={<ProtectedRoute><SecurityForm mode="edit" /></ProtectedRoute>} />
           <Route path="/securities/:id/delete" element={<ProtectedRoute><SecurityDelete /></ProtectedRoute>} />
 
