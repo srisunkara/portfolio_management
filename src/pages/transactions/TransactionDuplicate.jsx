@@ -1,11 +1,13 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api/client.js";
+import { useAuth } from "../../context/AuthContext.jsx";
 import { formFieldsForAction, labelize, defaultValueForType, coerceValue } from "../../models/fields.js";
 
 export default function TransactionDuplicate() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { user } = useAuth();
 
   const [fields, setFields] = React.useState([]);
   const [form, setForm] = React.useState({});
@@ -40,10 +42,14 @@ export default function TransactionDuplicate() {
           throw new Error("VOO security not found in database");
         }
 
-        // Find a dummy/default portfolio (first one for now, or could be configurable)
-        const defaultPortfolio = formData?.portfolios?.[0];
+        // Pick a default portfolio from the current user's portfolios
+        const uid = user?.user_id || user?.id || user?.userId;
+        const allPortfolios = formData?.portfolios || [];
+        const userPortfolios = uid != null ? allPortfolios.filter(p => p && p.user_id === uid) : allPortfolios;
+        setPortfolios(userPortfolios);
+        const defaultPortfolio = userPortfolios?.[0];
         if (!defaultPortfolio) {
-          throw new Error("No portfolios available");
+          throw new Error("No portfolios available for the current user");
         }
 
         // Initialize form with original transaction data but override key fields

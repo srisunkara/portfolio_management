@@ -42,7 +42,7 @@ def get_transaction_form_data() -> dict[str, Any]:
     """
     try:
         portfolios = [
-            {"portfolio_id": p.portfolio_id, "name": p.name}
+            {"portfolio_id": p.portfolio_id, "user_id": p.user_id, "name": p.name}
             for p in portfolio_crud.list_all()
         ]
     except Exception:
@@ -74,10 +74,13 @@ def get_transaction_form_data() -> dict[str, Any]:
 
 # Get linked transaction pairs for performance comparison
 @router.get("/linked-pairs")
-def get_linked_transaction_pairs():
-    """Get all linked transaction pairs (original and duplicate transactions)"""
+def get_linked_transaction_pairs(user_id: int | None = None):
+    """Get linked transaction pairs; when user_id provided, limit to that user's portfolios."""
     try:
         all_transactions = transaction_crud.list_full()
+        # Optional filter by user_id if TransactionFullView includes user_id
+        if user_id is not None:
+            all_transactions = [t for t in all_transactions if getattr(t, "user_id", None) == user_id]
         
         # Find transactions that have duplicates (rel_transaction_id is not None)
         duplicate_transactions = [t for t in all_transactions if t.rel_transaction_id is not None]
@@ -95,7 +98,9 @@ def get_linked_transaction_pairs():
                         "security_ticker": original.security_ticker,
                         "security_name": original.security_name,
                         "total_inv_amt": original.total_inv_amt,
-                        "portfolio_name": original.portfolio_name
+                        "portfolio_name": original.portfolio_name,
+                        "portfolio_id": original.portfolio_id,
+                        "user_id": getattr(original, "user_id", None),
                     },
                     "duplicate": {
                         "transaction_id": duplicate.transaction_id,
@@ -103,7 +108,9 @@ def get_linked_transaction_pairs():
                         "security_ticker": duplicate.security_ticker,
                         "security_name": duplicate.security_name,
                         "total_inv_amt": duplicate.total_inv_amt,
-                        "portfolio_name": duplicate.portfolio_name
+                        "portfolio_name": duplicate.portfolio_name,
+                        "portfolio_id": duplicate.portfolio_id,
+                        "user_id": getattr(duplicate, "user_id", None),
                     }
                 })
         

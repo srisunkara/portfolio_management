@@ -124,9 +124,13 @@ export default function UsersList() {
           >
             Clear Filters
           </button>
+          {/* Admin-only: List Users */}
+          { (user?.is_admin || user?.isAdmin) ? (
           <Link to="/users/new" style={{ background: "#0f172a", color: "white", padding: "8px 12px", borderRadius: 8, textDecoration: "none" }}>
             Add User
           </Link>
+          ) : null }
+
         </div>
         <div style={{ background: "white", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflow: "auto", marginTop: 12, maxHeight: "calc(100vh - 160px)" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 720 }}>
@@ -210,12 +214,12 @@ export default function UsersList() {
       <div style={{ background: "white", borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflow: "auto", marginTop: 12, maxHeight: "calc(100vh - 160px)", padding: 16 }}>
         {me ? (
           <div style={{ display: "grid", gap: 12, maxWidth: 720 }}>
-            <Row label="User Id" value={me.user_id ?? me.id} />
             <Row label="First Name" value={me.first_name} />
             <Row label="Last Name" value={me.last_name} />
             <Row label="Email" value={me.email} />
             <Row label="Created" value={me.created_ts} />
             <Row label="Last Updated" value={me.last_updated_ts} />
+            <Row label="User Id" value={me.user_id ?? me.id} />
           </div>
         ) : (
           <div style={{ color: "#64748b" }}>No user found.</div>

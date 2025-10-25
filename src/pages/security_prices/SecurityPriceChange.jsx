@@ -176,7 +176,7 @@ export default function SecurityPriceChange() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, height: "100%", overflow: "auto" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <h1 style={{ margin: 0, flex: 1, fontSize: 24 }}>Security Price Change</h1>
+        <h1 style={{ margin: 0, flex: 1, fontSize: 24 }}>Security Performance Comparison</h1>
       </div>
 
       {/* Controls — single horizontal toolbar */}

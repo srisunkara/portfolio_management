@@ -25,6 +25,28 @@ export default function PortfolioAdminDownloadPrices() {
     trackEvent("page_view", { page: "download_prices" });
   }, []);
 
+  // Fallback: compute business days (Mon-Fri) between two YYYY-MM-DD dates, inclusive
+  function computeBusinessDaysInclusive(from, to) {
+    try {
+      if (!from || !to) return undefined;
+      const start = new Date(from);
+      const end = new Date(to);
+      if (isNaN(start) || isNaN(end)) return undefined;
+      // Ensure start <= end
+      if (start > end) return 0;
+      let count = 0;
+      const cur = new Date(start);
+      while (cur <= end) {
+        const day = cur.getDay(); // 0 Sun ... 6 Sat
+        if (day !== 0 && day !== 6) count++;
+        cur.setDate(cur.getDate() + 1);
+      }
+      return count;
+    } catch {
+      return undefined;
+    }
+  }
+
   const onSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -35,14 +57,52 @@ export default function PortfolioAdminDownloadPrices() {
       // Convert ticker filter to array if provided
       const tickers = ticker.trim() ? ticker.split(',').map(t => t.trim()).filter(t => t) : null;
       const res = await api.downloadPrices(fromDate, toDate, tickers);
-      setResult(res);
-      trackEvent("download_prices_success", { 
-        fromDate, 
-        toDate, 
+
+      // Normalize backend responses to a consistent shape for UI rendering
+      const normalize = (r) => {
+        if (!r || typeof r !== 'object') return r;
+        // If already in the expected shape, just ensure from/to dates are set
+        if (r.added || r.skipped || r.failed || r.updated) {
+          return {
+            ...r,
+            from_date: r.from_date ?? fromDate,
+            to_date: r.to_date ?? toDate,
+            business_days: r.business_days ?? computeBusinessDaysInclusive(r.from_date ?? fromDate, r.to_date ?? toDate),
+          };
+        }
+        const inserted = Number(r.inserted ?? 0);
+        const updated = Number(r.updated ?? 0);
+        const skippedUnknown = Array.isArray(r.skipped_unknown_ticker) ? r.skipped_unknown_ticker : [];
+        const skippedBad = Array.isArray(r.skipped_bad_data) ? r.skipped_bad_data : [];
+        const skippedTickers = [
+          ...(Array.isArray(r.skipped_tickers) ? r.skipped_tickers : []),
+          ...skippedUnknown,
+          ...skippedBad,
+        ];
+        const skippedCount = Number(
+          r.skipped ?? r.skipped_count ?? r.skipped_unknown_ticker_count ?? skippedTickers.length ?? 0
+        );
+        return {
+          ...r,
+          from_date: r.from_date ?? fromDate,
+          to_date: r.to_date ?? toDate,
+          added: { count: inserted, tickers: Array.isArray(r.inserted_tickers) ? r.inserted_tickers : [] },
+          updated: { count: updated, tickers: Array.isArray(r.updated_tickers) ? r.updated_tickers : [] },
+          skipped: { count: skippedCount, tickers: skippedTickers },
+          failed: r.failed && typeof r.failed === 'object' ? r.failed : { count: 0, tickers: [] },
+        };
+      };
+
+      const norm = normalize(res);
+      setResult(norm);
+      trackEvent("download_prices_success", {
+        fromDate,
+        toDate,
         ticker,
-        added_count: res?.added?.count, 
-        skipped_count: res?.skipped?.count, 
-        failed_count: res?.failed?.count 
+        added_count: norm?.added?.count,
+        updated_count: norm?.updated?.count,
+        skipped_count: norm?.skipped?.count,
+        failed_count: norm?.failed?.count,
       });
     } catch (e) {
       setError(e?.message || "Failed to download prices");
@@ -112,7 +172,25 @@ export default function PortfolioAdminDownloadPrices() {
                   {result.added.tickers.join(", ")}
                 </div>
               ) : (
-                <div style={{ fontSize: "12px", color: "#6b7280" }}>No tickers added</div>
+                <div style={{ fontSize: "12px", color: "#6b7280" }}>
+                  {result.added?.count ? "Ticker list not provided" : "No tickers added"}
+                </div>
+              )}
+            </div>
+
+            {/* Updated Securities */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontWeight: "bold", color: "#2563eb", marginBottom: 4 }}>
+                Updated ({result.updated?.count || 0} tickers)
+              </div>
+              {result.updated?.tickers && result.updated.tickers.length > 0 ? (
+                <div style={{ fontSize: "12px", color: "#1f2937", backgroundColor: "#dbeafe", padding: 8, borderRadius: 4, maxHeight: "100px", overflow: "auto" }}>
+                  {result.updated.tickers.join(", ")}
+                </div>
+              ) : (
+                <div style={{ fontSize: "12px", color: "#6b7280" }}>
+                  {result.updated?.count ? "Ticker list not provided" : "No tickers updated"}
+                </div>
               )}
             </div>
 
@@ -126,7 +204,9 @@ export default function PortfolioAdminDownloadPrices() {
                   {result.skipped.tickers.join(", ")}
                 </div>
               ) : (
-                <div style={{ fontSize: "12px", color: "#6b7280" }}>No tickers skipped</div>
+                <div style={{ fontSize: "12px", color: "#6b7280" }}>
+                  {result.skipped?.count ? "Ticker list not provided" : "No tickers skipped"}
+                </div>
               )}
             </div>
 

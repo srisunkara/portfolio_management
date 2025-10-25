@@ -4,8 +4,10 @@ import { api } from "../../api/client.js";
 import { getOrderedFields, renderCell, labelize } from "../../models/fields.js";
 import editImg from "../../images/edit.png";
 import deleteImg from "../../images/delete.png";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 export default function SecurityPricesList() {
+  const { user } = useAuth();
   const [rows, setRows] = React.useState([]);
   const [fields, setFields] = React.useState([]);
   const [filters, setFilters] = React.useState({});
@@ -277,14 +279,16 @@ export default function SecurityPricesList() {
               return (
                 <tr key={id ?? JSON.stringify(p)} style={{ borderTop: "1px solid #e2e8f0", background: idx % 2 === 1 ? "#f8fafc" : "white" }}>
                   <td style={{ padding: 12, whiteSpace: "nowrap" }}>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <Link to={`/security-prices/${id}/edit`} title="Edit" aria-label="Edit price">
-                        <img src={editImg} alt="Edit" style={{ width: 20, height: 20 }} />
-                      </Link>
-                      <Link to={`/security-prices/${id}/delete`} title="Delete" aria-label="Delete price">
-                        <img src={deleteImg} alt="Delete" style={{ width: 20, height: 20 }} />
-                      </Link>
-                    </div>
+                    {(user?.is_admin || user?.isAdmin) ? (
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <Link to={`/security-prices/${id}/edit`} title="Edit" aria-label="Edit price">
+                          <img src={editImg} alt="Edit" style={{ width: 20, height: 20 }} />
+                        </Link>
+                        <Link to={`/security-prices/${id}/delete`} title="Delete" aria-label="Delete price">
+                          <img src={deleteImg} alt="Delete" style={{ width: 20, height: 20 }} />
+                        </Link>
+                      </div>
+                    ) : null}
                   </td>
                   {fields.map((f) => (
                     <td key={f.name} style={{ padding: 12 }}>

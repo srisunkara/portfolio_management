@@ -170,12 +170,14 @@ def delete_holding(holding_id: int):
 # Recalculate holdings for a given date
 class RecalcRequest(BaseModel):
     date: _date
+    # Optional: restrict recalculation to a specific user's portfolios
+    user_id: int | None = None
 
 
 @router.post("/recalculate")
 def recalc_holdings(req: RecalcRequest) -> dict:
     try:
-        summary = holding_crud.recalc_for_date(req.date)
+        summary = holding_crud.recalc_for_date(req.date, getattr(req, 'user_id', None))
         return {"date": req.date, **summary}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

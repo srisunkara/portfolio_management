@@ -97,7 +97,7 @@ from source_code.crud.security_api_routes import router as security_router
 from source_code.crud.security_price_api_routes import router as security_price_router
 from source_code.crud.external_platform_api_routes import router as platform_router
 from source_code.crud.transaction_api_routes import router as transaction_router
-from source_code.crud.user_api_routes import router as user_router
+from source_code.crud.user_api_routes import router as user_router, router_api as user_api_router
 
 from contextlib import asynccontextmanager
 
@@ -141,6 +141,7 @@ app.include_router(auth_router)
 # app.include_router(holding.router, prefix="/holdings")
 #
 app.include_router(user_router)
+app.include_router(user_api_router)
 app.include_router(security_router)
 app.include_router(portfolio_router)
 app.include_router(platform_router)

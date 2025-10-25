@@ -129,7 +129,83 @@ export default function TransactionsList() {
 
   // Sorted rows based on sortBy and sortDir
   const sortedRows = React.useMemo(() => {
-    if (!sortBy) return filteredRows;
+    // Default sort: group by portfolio and ticker, and place duplicates directly under their originals
+    if (!sortBy) {
+      const byId = new Map();
+      for (const r of filteredRows) {
+        const id = r.transaction_id ?? r.id;
+        if (id != null) byId.set(id, r);
+      }
+      const children = new Map(); // originalId -> [dupe]
+      const isDuplicate = (row) => row.rel_transaction_id != null && row.rel_transaction_id !== 0;
+      for (const r of filteredRows) {
+        if (isDuplicate(r)) {
+          const pid = r.rel_transaction_id;
+          if (!children.has(pid)) children.set(pid, []);
+          children.get(pid).push(r);
+        }
+      }
+      const safeStr = (v) => String(v ?? "").toLowerCase();
+      const dateNum = (v) => (v ? new Date(v).getTime() : -Infinity);
+      const idNum = (r) => (r.transaction_id ?? r.id ?? Number.MIN_SAFE_INTEGER);
+
+      const originals = filteredRows.filter((r) => !isDuplicate(r));
+      originals.sort((a, b) => {
+        const pa = safeStr(a.portfolio_name);
+        const pb = safeStr(b.portfolio_name);
+        if (pa < pb) return -1;
+        if (pa > pb) return 1;
+        const ta = safeStr(a.security_ticker);
+        const tb = safeStr(b.security_ticker);
+        if (ta < tb) return -1;
+        if (ta > tb) return 1;
+        const da = dateNum(a.transaction_date);
+        const db = dateNum(b.transaction_date);
+        if (da !== db) return da - db;
+        return idNum(a) - idNum(b);
+      });
+
+      const result = [];
+      const added = new Set();
+      for (const o of originals) {
+        result.push(o);
+        added.add(idNum(o));
+        const dupes = (children.get(idNum(o)) || []).slice();
+        dupes.sort((a, b) => {
+          const da = dateNum(a.transaction_date);
+          const db = dateNum(b.transaction_date);
+          if (da !== db) return da - db;
+          return idNum(a) - idNum(b);
+        });
+        for (const d of dupes) {
+          if (!added.has(idNum(d))) {
+            result.push(d);
+            added.add(idNum(d));
+          }
+        }
+      }
+
+      // Orphan duplicates (original not present in filtered set)
+      const remaining = filteredRows.filter((r) => !added.has(idNum(r)));
+      remaining.sort((a, b) => {
+        const pa = safeStr(a.portfolio_name);
+        const pb = safeStr(b.portfolio_name);
+        if (pa < pb) return -1;
+        if (pa > pb) return 1;
+        const ta = safeStr(a.security_ticker);
+        const tb = safeStr(b.security_ticker);
+        if (ta < tb) return -1;
+        if (ta > tb) return 1;
+        const da = dateNum(a.transaction_date);
+        const db = dateNum(b.transaction_date);
+        if (da !== db) return da - db;
+        return idNum(a) - idNum(b);
+      });
+      result.push(...remaining);
+      return result;
+    }
+
+    // When a manual column sort is active, use that ordering
     const fieldDef = fields.find((f) => f.name === sortBy);
     const arr = [...filteredRows];
     const dir = sortDir === "desc" ? -1 : 1;
@@ -301,8 +377,27 @@ export default function TransactionsList() {
           <tbody>
             {sortedRows.map((t, idx) => {
               const id = t.transaction_id ?? t.id;
-              // Check if this transaction ID appears as rel_transaction_id in any other transaction
+              // This row is a duplicate if it points to an original via rel_transaction_id
+              const isDuplicate = t.rel_transaction_id != null && t.rel_transaction_id !== 0;
+              // Check if this transaction ID appears as rel_transaction_id in any other transaction (i.e., this is an original that already has a duplicate)
               const hasBeenDuplicated = sortedRows.some(other => other.rel_transaction_id === id);
+
+              // For duplicate indicator, attempt to locate the original in the full dataset (rows)
+              let duplicateInfo = null;
+              if (isDuplicate) {
+                const original = (rows || []).find(o => (o.transaction_id ?? o.id) === t.rel_transaction_id);
+                const ticker = original?.security_ticker || original?.security?.ticker;
+                const dateRaw = original?.transaction_date;
+                const priceRaw = original?.transaction_price;
+                const dateStr = dateRaw ? (typeof dateRaw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateRaw) ? dateRaw : (() => { const d = new Date(dateRaw); return isNaN(d) ? String(dateRaw) : d.toLocaleDateString(); })()) : "";
+                let priceStr = "";
+                if (priceRaw != null) {
+                  const num = typeof priceRaw === "number" ? priceRaw : Number(priceRaw);
+                  priceStr = Number.isFinite(num) ? num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(priceRaw);
+                }
+                duplicateInfo = original ? `Duplicate of ${ticker ?? "Txn " + original?.transaction_id ?? original?.id}${dateStr ? ` on ${dateStr}` : ""}${priceStr ? ` at ${priceStr}` : ""}` : `Duplicate of Txn ${t.rel_transaction_id}`;
+              }
+
               return (
                 <tr key={id ?? JSON.stringify(t)} style={{ borderTop: "1px solid #e2e8f0", background: idx % 2 === 1 ? "#f8fafc" : "white" }}>
                   <td style={{ padding: 12, whiteSpace: "nowrap" }}>
@@ -310,7 +405,7 @@ export default function TransactionsList() {
                       <Link to={`/transactions/${id}/edit`} title="Edit" aria-label="Edit transaction">
                         <img src={editImg} alt="Edit" style={{ width: 20, height: 20 }} />
                       </Link>
-                      {!hasBeenDuplicated && (
+                      {!(isDuplicate || hasBeenDuplicated) && (
                         <Link to={`/transactions/${id}/duplicate`} title="Duplicate as VOO" aria-label="Duplicate transaction as VOO">
                           <span style={{ fontSize: 16, color: "#0f172a", textDecoration: "none" }}>⧉</span>
                         </Link>
@@ -320,11 +415,24 @@ export default function TransactionsList() {
                       </Link>
                     </div>
                   </td>
-                  {fields.map((f) => (
-                    <td key={f.name} style={{ padding: 12, whiteSpace: "nowrap" }}>
-                      {renderCell(t[f.name], f)}
-                    </td>
-                  ))}
+                  {fields.map((f) => {
+                    if (f.name === "security_name") {
+                      const nameVal = t[f.name];
+                      return (
+                        <td key={f.name} style={{ padding: 12, whiteSpace: "nowrap" }}>
+                          <div>{renderCell(nameVal, f)}</div>
+                          {isDuplicate && duplicateInfo ? (
+                            <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{duplicateInfo}</div>
+                          ) : null}
+                        </td>
+                      );
+                    }
+                    return (
+                      <td key={f.name} style={{ padding: 12, whiteSpace: "nowrap" }}>
+                        {renderCell(t[f.name], f)}
+                      </td>
+                    );
+                  })}
                 </tr>
               );
             })}

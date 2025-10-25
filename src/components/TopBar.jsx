@@ -23,13 +23,13 @@ export default function TopBar() {
   return (
     <div style={{ position: "fixed", top: 0, left: 0, right: 0, minHeight: 56, background: "#0f172a", color: "white", display: "flex", alignItems: "center", padding: "0 12px", boxShadow: "0 2px 8px rgba(0,0,0,0.15)", zIndex: 1000, gap: 8, flexWrap: "wrap" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-        <img src={logo} alt="Portfolio Plus" style={{ width: 28, height: 28, objectFit: "contain" }} />
-        <div style={{ fontWeight: 700, marginRight: 8, whiteSpace: "nowrap" }}>Portfolio Management</div>
+        <NavLink to="/" style={{ display: "inline-flex", alignItems: "center" }}>
+          <img src={logo} alt="Portfolio Plus" style={{ width: 28, height: 28, objectFit: "contain" }} />
+        </NavLink>
       </div>
 
       {/* Primary menu */}
       <nav style={menuStyle}>
-        <NavLink to="/" style={linkStyle} end>Dashboard</NavLink>
 
         <Dropdown label="Holdings">
           <MenuLink to="/holdings">List</MenuLink>
@@ -50,7 +50,6 @@ export default function TopBar() {
 
         <Dropdown label="Security Prices">
           <MenuLink to="/security-prices">List</MenuLink>
-          <MenuLink to="/security-prices/price-change">Price Change</MenuLink>
           <MenuLink to="/security-prices/new">Add</MenuLink>
         </Dropdown>
 
@@ -66,17 +65,18 @@ export default function TopBar() {
 
         <Dropdown label="Users">
           <MenuLink to="/users">My Profile</MenuLink>
+          <MenuLink to="/users/change-password">Change Password</MenuLink>
           {/* Admin-only: List Users */}
           { (user?.is_admin || user?.isAdmin) ? (
             <MenuLink to="/users/all">List Users</MenuLink>
           ) : null }
-          <MenuLink to="/users/change-password">Change Password</MenuLink>
         </Dropdown>
 
         <Dropdown label="Portfolio Admin">
           <MenuLink to="/holdings/recalculate">Recalculate Holdings</MenuLink>
           <MenuLink to="/portfolio-admin/download-prices">Download Prices</MenuLink>
-          <MenuLink to="/transactions/performance-comparison">Performance Comparison</MenuLink>
+          <MenuLink to="/security-prices/price-change">Price Performance Comparison</MenuLink>
+          <MenuLink to="/transactions/performance-comparison">Transaction Performance Comparison</MenuLink>
         </Dropdown>
 
       </nav>
@@ -85,12 +85,40 @@ export default function TopBar() {
         <div style={{ opacity: 0.9, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "40vw" }}>
           {(() => {
             if (!user) return "";
+            const email = user.email || user.username || "";
+
+            // Try common name fields first
             const first = user.first_name || user.firstName || "";
             const last = user.last_name || user.lastName || "";
             const combined = `${first} ${last}`.replace(/\s+/g, " ").trim();
-            const altName = user.full_name || user.fullName || user.name || "";
-            const displayName = (combined && combined !== "") ? combined : (altName || "");
-            const email = user.email || user.username || "";
+
+            // Other possible name keys coming from various backends
+            const altName =
+              // Prefer explicit full name fields first
+              user.full_name ||
+              user.fullName ||
+              // Then look at nested profile fields (some backends put the real name here)
+              (user.profile && (user.profile.full_name || user.profile.fullName || user.profile.display_name || user.profile.displayName || user.profile.name)) ||
+              // Then display name style fields
+              user.display_name ||
+              user.displayName ||
+              // Finally fall back to a generic name field
+              user.name ||
+              "";
+
+            // If still no name, derive from email prefix (before @)
+            let derived = "";
+            if (!combined && !altName && email && email.includes("@")) {
+              const prefix = email.split("@")[0];
+              derived = prefix
+                .replace(/[._-]+/g, " ")
+                .split(" ")
+                .filter(Boolean)
+                .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                .join(" ");
+            }
+
+            const displayName = combined || altName || derived;
             return displayName ? `${displayName} — ${email}` : email;
           })()}
         </div>

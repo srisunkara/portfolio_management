@@ -23,7 +23,7 @@ export default function SideNav({ open, onClose }) {
   );
 
   const mainItems = [
-    { to: "/", label: "Dashboard" },
+    { to: "/", label: "Home" },
   ];
 
   const isActive = (path) =>

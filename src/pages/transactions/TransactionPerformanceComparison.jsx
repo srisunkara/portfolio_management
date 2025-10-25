@@ -1,5 +1,6 @@
 import React from "react";
 import { api } from "../../api/client.js";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 // Helper function to format numbers with commas and 2 decimal places
 function formatNumber(value) {
@@ -10,6 +11,7 @@ function formatNumber(value) {
 }
 
 export default function TransactionPerformanceComparison() {
+  const { user } = useAuth();
   const [pairs, setPairs] = React.useState([]);
   const [selectedPair, setSelectedPair] = React.useState("");
   const [fromDate, setFromDate] = React.useState(() => {
@@ -34,7 +36,8 @@ export default function TransactionPerformanceComparison() {
     let alive = true;
     (async () => {
       try {
-        const response = await api.getLinkedTransactionPairs();
+        const uid = user?.user_id || user?.id || user?.userId;
+        const response = await api.getLinkedTransactionPairs(uid);
         if (alive) {
           setPairs(response.pairs || []);
           if (response.pairs && response.pairs.length > 0) {

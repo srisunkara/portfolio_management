@@ -88,7 +88,11 @@ export const api = {
   updateHolding: (id, payload) => request(`/holdings/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteHolding: (id) => request(`/holdings/${id}`, { method: "DELETE" }),
   // Holdings maintenance
-  recalcHoldings: (date) => request(`/holdings/recalculate`, { method: "POST", body: JSON.stringify({ date }) }),
+  recalcHoldings: (date, user_id) => {
+    const body = { date };
+    if (user_id != null) body.user_id = user_id;
+    return request(`/holdings/recalculate`, { method: "POST", body: JSON.stringify(body) });
+  },
 
   // Security Prices
   listSecurityPrices: (date) => request(`/security-prices${date ? `?date=${encodeURIComponent(date)}` : ""}`, { method: "GET" }),
@@ -112,7 +116,8 @@ export const api = {
     if (tickers && Array.isArray(tickers) && tickers.length > 0) {
       payload.tickers = tickers.filter(t => t && t.trim()).map(t => t.trim());
     }
-    return request(`/security-prices/download`, { method: "POST", body: JSON.stringify(payload) });
+    // Backend expects POST /api/security-prices/download-date-range
+    return request(`/security-prices/download-date-range`, { method: "POST", body: JSON.stringify(payload) });
   },
 
   // Transactions
@@ -126,7 +131,10 @@ export const api = {
   // Maintenance
   recalculateTransactionFees: () => request("/transactions/recalculate-fees", { method: "POST" }),
   // Performance comparison
-  getLinkedTransactionPairs: () => request("/transactions/linked-pairs", { method: "GET" }),
+  getLinkedTransactionPairs: (user_id) => {
+      const qs = user_id != null ? `?user_id=${encodeURIComponent(user_id)}` : "";
+      return request(`/transactions/linked-pairs${qs}`, { method: "GET" });
+    },
   getPerformanceComparison: (pairId, fromDate, toDate, options = {}) => {
     const params = new URLSearchParams();
     params.append('from_date', fromDate);

@@ -101,11 +101,7 @@ class MockDB:
 
         if 'insert into user_dtl' in sql_low:
             # dynamic columns handling already done by CRUD; we only store resulting params tuple order
-            # Extract in order: columns can vary; use indices by detecting email/password_hash presence length
-            # But we cannot infer names here; tests will verify via list queries using SELECT fixed columns
-            # We'll reconstruct based on length
             values = list(params)
-            # Try to read by positions: last two are created_ts, last_updated_ts; first is user_id; then names and optional email/password_hash
             user_id = values[0]
             first_name = values[1]
             last_name = values[2]
@@ -114,13 +110,16 @@ class MockDB:
             last_updated_ts = values[-1]
             email = None
             password_hash = None
-            # find possible email/password_hash among middle values
+            is_admin = False
+            # find possible email/password_hash/is_admin among middle values
             middle = values[3:-2]
             for v in middle:
-                # simplistic guess: if contains '@' treat as email; else treat as password_hash
                 if isinstance(v, str) and '@' in v and email is None:
                     email = v
+                elif isinstance(v, bool):
+                    is_admin = v
                 else:
+                    # assume this is password_hash
                     password_hash = v
             self.tables['user_dtl'][user_id] = {
                 'user_id': user_id,
@@ -128,11 +127,12 @@ class MockDB:
                 'last_name': last_name,
                 'email': email,
                 'password_hash': password_hash,
+                'is_admin': is_admin,
                 'created_ts': created_ts,
                 'last_updated_ts': last_updated_ts,
             }
             return 1
-        if sql_low.startswith('update user_dtl'):
+        if 'update user_dtl' in sql_low:
             first_name, last_name, email, password_hash, last_updated_ts, pk = params
             row = self.tables['user_dtl'].get(pk)
             if not row:

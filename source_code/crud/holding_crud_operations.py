@@ -144,15 +144,17 @@ class HoldingCRUD(BaseCRUD[HoldingDtl]):
         )
         return affected > 0
 
-    def recalc_for_date(self, target_date) -> dict:
+    def recalc_for_date(self, target_date, user_id: int | None = None) -> dict:
         """
         Recalculate holdings for a given date by aggregating transactions up to and including that date.
         Computes net quantity and moving average cost (avg_price) for each (portfolio_id, security_id).
         Sets price from security_price_dtl for that date if available; market_value = quantity * price.
         Replaces existing holdings for the target_date.
+        If user_id is provided, only include transactions from portfolios owned by that user.
         Returns summary dict {"deleted": n, "inserted": m}.
         """
-        # Fetch transactions up to date
+        # Fetch transactions up to date (mock DB only understands simple table scans with non-equality WHERE),
+        # so we apply any user filter in Python below.
         rows = pg_db_conn_manager.fetch_data(
             """
             SELECT portfolio_id, security_id, transaction_date, transaction_type, transaction_qty, transaction_price
@@ -162,6 +164,14 @@ class HoldingCRUD(BaseCRUD[HoldingDtl]):
             """,
             (target_date,)
         )
+        # Optionally filter by user ownership of portfolio
+        if user_id is not None:
+            # Build a set of portfolio_ids belonging to the given user
+            pf_rows = pg_db_conn_manager.fetch_data(
+                "SELECT portfolio_id, user_id FROM portfolio_dtl"
+            ) or []
+            allowed_portfolios = {r["portfolio_id"] for r in pf_rows if (r.get("user_id") == user_id)}
+            rows = [r for r in rows if r.get("portfolio_id") in allowed_portfolios]
         # Aggregate by moving average
         from collections import defaultdict
         agg = defaultdict(lambda: {"qty": 0.0, "avg": 0.0})

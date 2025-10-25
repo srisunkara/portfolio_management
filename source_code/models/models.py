@@ -9,11 +9,11 @@ class UserDtl(BaseModel):
     user_id: int
     first_name: str
     last_name: str
-    email: str = None
-    password_hash: str = None
+    email: Optional[str] = None
+    password_hash: Optional[str] = None
     is_admin: bool = False
-    created_ts: datetime = datetime.now(timezone.utc)
-    last_updated_ts: datetime = datetime.now(timezone.utc)
+    created_ts: Optional[datetime] = None
+    last_updated_ts: Optional[datetime] = None
 
 
 class UserDtlInput(BaseModel):

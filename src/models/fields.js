@@ -16,23 +16,22 @@ export const modelFieldDefs = {
   // ... existing code ...
   // Portfolio model (used by UI pages similar to Securities)
   PortfolioDtl: [
-    { name: "portfolio_id", type: "integer", readOnly: true },
-    { name: "user_id", type: "integer" },
     { name: "name", type: "string" },
     { name: "open_date", type: "date" },
     { name: "close_date", type: "date" },
     { name: "created_ts", type: "string", format: "date-time", readOnly: true },
     { name: "last_updated_ts", type: "string", format: "date-time", readOnly: true },
+    { name: "user_id", type: "integer" },
+    { name: "portfolio_id", type: "integer", readOnly: true },
   ],
   ExternalPlatformDtl: [
-    { name: "external_platform_id", type: "integer", readOnly: true },
     { name: "name", type: "string" },
     { name: "platform_type", type: "string" },
     { name: "created_ts", type: "string", format: "date-time", readOnly: true },
     { name: "last_updated_ts", type: "string", format: "date-time", readOnly: true },
+    { name: "external_platform_id", type: "integer", readOnly: true },
   ],
   UserDtl: [
-    { name: "user_id", type: "integer", readOnly: true },
     { name: "first_name", type: "string" },
     { name: "last_name", type: "string" },
     { name: "email", type: "string" },
@@ -40,6 +39,7 @@ export const modelFieldDefs = {
     // We do not expose password_hash in forms; for create/edit, accept an optional 'password' input field
     { name: "created_ts", type: "string", format: "date-time", readOnly: true },
     { name: "last_updated_ts", type: "string", format: "date-time", readOnly: true },
+    { name: "user_id", type: "integer", readOnly: true },
   ],
   HoldingDtl: [
     { name: "holding_dt", type: "date" },
@@ -69,15 +69,14 @@ export const modelFieldDefs = {
     { name: "last_updated_ts", type: "string", format: "date-time", readOnly: true },
   ],
   TransactionDtl: [
-    { name: "transaction_id", type: "integer", readOnly: true },
     { name: "portfolio_id", type: "integer" },
     { name: "security_id", type: "integer" },
     { name: "external_platform_id", type: "integer" },
     { name: "transaction_date", type: "date" },
     { name: "transaction_type", type: "string" },
     { name: "transaction_qty", type: "number" },
-    { name: "total_inv_amt", type: "number" },
     { name: "transaction_price", type: "number" },
+    { name: "total_inv_amt", type: "number" },
     { name: "transaction_fee", type: "number", default: 0.0 },
     { name: "transaction_fee_percent", type: "number", default: 0.0 },
     { name: "management_fee", type: "number", default: 0.0 },
@@ -89,7 +88,8 @@ export const modelFieldDefs = {
     { name: "rel_transaction_id", type: "integer" },
     { name: "created_ts", type: "string", format: "date-time", readOnly: true },
     { name: "last_updated_ts", type: "string", format: "date-time", readOnly: true },
-  ],
+    { name: "transaction_id", type: "integer", readOnly: true },
+],
   TransactionFullView: [
     { name: "portfolio_name", type: "string" },
     { name: "security_ticker", type: "string" },

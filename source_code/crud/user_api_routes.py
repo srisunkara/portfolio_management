@@ -13,7 +13,9 @@ from source_code.crud.user_crud_operations import user_crud
 from source_code.models.models import UserDtl, UserDtlInput
 from source_code.utils import auth_utils
 
-router = APIRouter(prefix="/api/users", tags=["Users"])
+router = APIRouter(prefix="/users", tags=["Users"]) 
+# Also expose the same endpoints under /api/users for the front-end
+router_api = APIRouter(prefix="/api/users", tags=["Users"])
 
 # Replace with your real CRUD and model imports
 # from source_code.crud.user_crud_operations import user_crud
@@ -33,7 +35,13 @@ SALT_LEN = 16
 
 
 @router.post("/", response_model=UserDtl)
+@router_api.post("/", response_model=UserDtl)
 def save_user(user: UserDtlInput):
+    # Enforce unique email (if provided)
+    if getattr(user, 'email', None):
+        existing = user_crud.get_by_email(user.email)
+        if existing:
+            raise HTTPException(status_code=400, detail=f"A user with email '{user.email}' already exists")
     # Hash the password if provided; store hash via CRUD (mapping password->password_hash)
     if user.password:
         user.password = auth_utils.hash_password(user.password)
@@ -42,15 +50,41 @@ def save_user(user: UserDtlInput):
 
 @router.get("", response_model=list[UserDtl])
 @router.get("/", response_model=list[UserDtl])
+@router_api.get("", response_model=list[UserDtl])
+@router_api.get("/", response_model=list[UserDtl])
 def list_users():
     return user_crud.list_all()
 
 
 # Bulk save JSON array
 @router.post("/bulk", response_model=list[UserDtl])
+@router_api.post("/bulk", response_model=list[UserDtl])
 def save_users_bulk(users: list[UserDtlInput]):
     if not users:
         return []
+    # Normalize and check duplicate emails within payload
+    seen = {}
+    dups = set()
+    for idx, u in enumerate(users):
+        em = (getattr(u, 'email', None) or '').strip().lower()
+        if not em:
+            continue
+        if em in seen:
+            dups.add(em)
+        else:
+            seen[em] = idx
+    if dups:
+        dup_list = ", ".join(sorted(dups))
+        raise HTTPException(status_code=400, detail=f"Duplicate emails in payload: {dup_list}")
+    # Check against existing DB
+    conflicts = []
+    for em in seen.keys():
+        if user_crud.get_by_email(em):
+            conflicts.append(em)
+    if conflicts:
+        conf_list = ", ".join(sorted(conflicts))
+        raise HTTPException(status_code=400, detail=f"Users already exist for emails: {conf_list}")
+    # Hash passwords and forward
     items: list[UserDtlInput] = []
     for u in users:
         if u.password:
@@ -61,6 +95,7 @@ def save_users_bulk(users: list[UserDtlInput]):
 
 # CSV upload for users (headers: first_name, last_name, [email], [password])
 @router.post("/bulk-csv", response_model=list[UserDtl])
+@router_api.post("/bulk-csv", response_model=list[UserDtl])
 async def upload_users_csv(file):
     from fastapi import UploadFile, File
     import csv, io
@@ -78,6 +113,8 @@ async def upload_users_csv(file):
         raise HTTPException(status_code=400, detail=f"Missing required CSV headers: {', '.join(sorted(missing))}")
     items: list[UserDtlInput] = []
     row_num = 1
+    email_rows: dict[str, int] = {}
+    dups_in_file = set()
     for row in reader:
         row_num += 1
 
@@ -86,20 +123,40 @@ async def upload_users_csv(file):
 
         first_name = get_val("first_name")
         last_name = get_val("last_name")
-        email = get_val("email") or None
+        email_raw = get_val("email")
+        email = email_raw or None
         password = get_val("password") or None
         if not first_name or not last_name:
             raise HTTPException(status_code=400, detail=f"Row {row_num}: 'first_name' and 'last_name' are required")
+        # Track duplicates in file
+        if email:
+            em_norm = email.strip().lower()
+            if em_norm in email_rows:
+                dups_in_file.add(em_norm)
+            else:
+                email_rows[em_norm] = row_num
         if password:
             password = auth_utils.hash_password(password)
         items.append(UserDtlInput(first_name=first_name, last_name=last_name, email=email, password=password))
+    if dups_in_file:
+        dup_list = ", ".join(sorted(dups_in_file))
+        raise HTTPException(status_code=400, detail=f"Duplicate emails in file: {dup_list}")
     if not items:
         return []
+    # Check against existing DB
+    conflicts = []
+    for em in email_rows.keys():
+        if user_crud.get_by_email(em):
+            conflicts.append(em)
+    if conflicts:
+        conf_list = ", ".join(sorted(conflicts))
+        raise HTTPException(status_code=400, detail=f"Users already exist for emails: {conf_list}")
     return user_crud.save_many(items)
 
 
 # CSV export endpoint
 @router.get("/export.csv")
+@router_api.get("/export.csv")
 def export_users_csv():
     import csv, io
     from fastapi.responses import Response
@@ -124,6 +181,7 @@ def export_users_csv():
 
 
 @router.get("/{user_id}", response_model=UserDtl)
+@router_api.get("/{user_id}", response_model=UserDtl)
 def get_user(user_id: int):
     user = user_crud.get_security(user_id)
     if not user:
@@ -132,6 +190,7 @@ def get_user(user_id: int):
 
 
 @router.put("/{user_id}", response_model=UserDtl)
+@router_api.put("/{user_id}", response_model=UserDtl)
 def update_user(user_id: int, user: UserDtlInput):
     try:
         # If a plain password is provided from the form, hash it before persisting
@@ -145,6 +204,7 @@ def update_user(user_id: int, user: UserDtlInput):
 
 
 @router.delete("/{user_id}", response_model=dict)
+@router_api.delete("/{user_id}", response_model=dict)
 def delete_user(user_id: int):
     deleted = user_crud.delete(user_id)
     if not deleted:
@@ -166,6 +226,7 @@ class LoginRequest(BaseModel):
 
 
 @router.post("/login")
+@router_api.post("/login")
 def login(body: LoginRequest):
     print(f"DEBUG: Login attempt for email: {body.email}")
     
@@ -198,5 +259,12 @@ def login(body: LoginRequest):
     return {
         "access_token": token,
         "token_type": "bearer",
-        "user": {"id": user.user_id, "email": user.email, "is_admin": getattr(user, "is_admin", False)},
+        "user": {
+            "id": user.user_id,
+            "email": user.email,
+            "is_admin": getattr(user, "is_admin", False),
+            "first_name": getattr(user, "first_name", None),
+            "last_name": getattr(user, "last_name", None),
+            "full_name": f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip(),
+        },
     }

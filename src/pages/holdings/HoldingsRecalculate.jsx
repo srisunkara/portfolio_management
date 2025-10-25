@@ -2,8 +2,10 @@ import React from "react";
 import { api } from "../../api/client.js";
 import { Link } from "react-router-dom";
 import { trackEvent } from "../../utils/telemetry.js";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 export default function HoldingsRecalculate() {
+  const { user } = useAuth();
   const [date, setDate] = React.useState(() => {
     // Default to last weekday (Fri if weekend)
     const d = new Date();
@@ -29,7 +31,8 @@ export default function HoldingsRecalculate() {
     setLoading(true);
     trackEvent("recalc_holdings_click", { date });
     try {
-      const res = await api.recalcHoldings(date);
+      const uid = user?.user_id || user?.id || user?.userId;
+      const res = await api.recalcHoldings(date, uid);
       const del = res?.deleted ?? 0;
       const ins = res?.inserted ?? 0;
       setMessage(`Recalculated holdings for ${res?.date || date}. Deleted ${del}, Inserted ${ins}.`);

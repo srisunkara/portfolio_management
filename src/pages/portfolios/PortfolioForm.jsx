@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api/client.js";
+import { useAuth } from "../../context/AuthContext.jsx";
 import { formFieldsForAction, labelize, defaultValueForType, coerceValue } from "../../models/fields.js";
 
 export default function PortfolioForm({ mode }) {
@@ -10,7 +11,7 @@ export default function PortfolioForm({ mode }) {
 
   const [fields, setFields] = React.useState([]);
   const [form, setForm] = React.useState({});
-  const [users, setUsers] = React.useState([]);
+  const { user } = useAuth();
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState("");
@@ -21,10 +22,7 @@ export default function PortfolioForm({ mode }) {
       try {
         const f = formFieldsForAction("PortfolioDtl", isEdit ? "edit" : "create");
         let initial = {};
-        const [usersRes, data] = await Promise.all([
-          api.listUsers(),
-          isEdit ? api.getPortfolio(id) : Promise.resolve(null),
-        ]);
+        const data = isEdit ? await api.getPortfolio(id) : null;
         if (isEdit && data) {
           for (const field of f) {
             initial[field.name] = data?.[field.name] ?? defaultValueForType(field.type);
@@ -42,10 +40,14 @@ export default function PortfolioForm({ mode }) {
           if (Object.prototype.hasOwnProperty.call(initial, "close_date")) {
             initial.close_date = "";
           }
+          // Force user_id to current user for creation
+          const uid = user?.user_id || user?.id || user?.userId || null;
+          if (uid != null && Object.prototype.hasOwnProperty.call(initial, "user_id")) {
+            initial.user_id = uid;
+          }
         }
         if (alive) {
           setFields(f);
-          setUsers(usersRes || []);
           setForm(initial);
         }
       } catch (e) {
@@ -86,7 +88,7 @@ export default function PortfolioForm({ mode }) {
       <h1 style={{ marginTop: 0 }}>{isEdit ? "Edit Portfolio" : "Add Portfolio"}</h1>
       <form onSubmit={onSubmit} style={{ background: "white", padding: 16, borderRadius: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", display: "grid", gap: 12, maxWidth: 720 }}>
         {fields.map((f) => (
-          <FieldInput key={f.name} field={f} value={form[f.name]} onChange={onChange} users={users} />
+          <FieldInput key={f.name} field={f} value={form[f.name]} onChange={onChange} isEdit={isEdit} currentUser={user} />
         ))}
         {error && <div style={{ color: "#b91c1c" }}>{error}</div>}
         <div style={{ display: "flex", gap: 8 }}>
@@ -102,25 +104,23 @@ export default function PortfolioForm({ mode }) {
   );
 }
 
-function FieldInput({ field, value, onChange, users = [] }) {
+function FieldInput({ field, value, onChange, isEdit = false, currentUser = null }) {
   const { name, type, required } = field;
   if (name === "user_id") {
+    // Hide the user selector; show read-only info instead (for transparency on edit),
+    // and always bind to the current user on create.
+    const uid = currentUser?.user_id || currentUser?.id || currentUser?.userId || "";
+    const fullName = `${currentUser?.first_name || currentUser?.firstName || ""} ${currentUser?.last_name || currentUser?.lastName || ""}`.trim();
+    const display = fullName || (currentUser?.email || "");
+    // Ensure form state reflects the enforced user_id
+    if (!isEdit && uid && value !== uid) {
+      // Note: onChange available here; update silently
+      setTimeout(() => onChange(name, uid), 0);
+    }
     return (
       <label style={{ display: "grid", gap: 6 }}>
         <span>User</span>
-        <select
-          value={value ?? ""}
-          onChange={(e) => onChange(name, e.target.value === "" ? "" : Number(e.target.value))}
-          required={!!required}
-          style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
-        >
-          <option value="">Select a user…</option>
-          {users.map((u) => (
-            <option key={u.user_id} value={u.user_id}>
-              {`${u.first_name} ${u.last_name}`.trim()} ({u.user_id})
-            </option>
-          ))}
-        </select>
+        <input type="text" value={display ? `${display} (ID: ${uid})` : String(uid)} readOnly style={{ padding: 10, borderRadius: 8, border: "1px solid #cbd5e1", background: "#f8fafc" }} />
       </label>
     );
   }
